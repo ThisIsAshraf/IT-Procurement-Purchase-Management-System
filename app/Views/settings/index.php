@@ -6,6 +6,9 @@
  * @var array<string, string> $s
  * @var array<int, array<string, mixed>> $currencies
  * @var array<int, array<string, mixed>> $exchangeRates
+ * @var array<int, array<string, mixed>> $categories
+ * @var array<int, array<string, mixed>> $units
+ * @var array<int, array<string, mixed>> $paymentTerms
  * @var array<int, array<string, mixed>> $templates
  * @var array<int, array<string, mixed>> $queue
  * @var array<int, array<string, mixed>> $roles
@@ -19,6 +22,9 @@ $tabs = $tabs ?? [];
 $s = $s ?? [];
 $currencies = $currencies ?? [];
 $exchangeRates = $exchangeRates ?? [];
+$categories = $categories ?? [];
+$units = $units ?? [];
+$paymentTerms = $paymentTerms ?? [];
 $templates = $templates ?? [];
 $queue = $queue ?? [];
 $roles = $roles ?? [];
@@ -141,7 +147,7 @@ $error = $error ?? null;
                 <input id="num_global_prefix" name="global_id_prefix" value="<?= e($s['global_id_prefix'] ?? 'NSG') ?>" maxlength="10">
             </label>
 
-            <div class="grid three">
+            <div class="grid two">
                 <div class="panel" style="background:#f8fafc;">
                     <h3>1. Catalog Item SKU</h3>
                     <label class="inline" style="margin-bottom:0.6rem;">
@@ -195,6 +201,27 @@ $error = $error ?? null;
                     </div>
                     <small class="subtitle">Preview: <code id="preview_emp"></code></small>
                 </div>
+
+                <div class="panel" style="background:#f8fafc;">
+                    <h3>4. Department Code</h3>
+                    <label>Generation Mode
+                        <select id="num_dept_mode" name="dept_code_mode">
+                            <option value="name_slug" <?= ($s['dept_code_mode'] ?? 'name_slug') === 'name_slug' ? 'selected' : '' ?>>Auto-Slug from Department Name</option>
+                            <option value="prefix_seq" <?= ($s['dept_code_mode'] ?? '') === 'prefix_seq' ? 'selected' : '' ?>>Prefix + Sequence (e.g. DEPT-001)</option>
+                        </select>
+                    </label>
+                    <label>Department Prefix Tag
+                        <input id="num_dept_tag" name="dept_code_prefix" value="<?= e($s['dept_code_prefix'] ?? 'DEPT') ?>">
+                    </label>
+                    <label class="inline" style="margin-bottom:0.6rem;">
+                        <input type="checkbox" id="num_dept_global" name="dept_include_global_prefix" value="1" <?= ($s['dept_include_global_prefix'] ?? '0') === '1' ? 'checked' : '' ?>>
+                        Include Global Prefix
+                    </label>
+                    <label>Sequence Digits
+                        <input type="number" min="2" max="6" id="num_dept_digits" name="dept_seq_digits" value="<?= e($s['dept_seq_digits'] ?? '3') ?>">
+                    </label>
+                    <small class="subtitle">Preview: <code id="preview_dept"></code></small>
+                </div>
             </div>
         </form>
     </section>
@@ -233,6 +260,17 @@ $error = $error ?? null;
                 var empTagWithBranch = document.getElementById('num_emp_tag_branch').checked;
                 var empTag = (document.getElementById('num_emp_tag').value.trim() || 'EMP').toUpperCase();
                 var empSeq = padSeq(document.getElementById('num_emp_digits').value, 2, 8);
+
+                // 4. Department Code Preview
+                var deptMode = document.getElementById('num_dept_mode').value;
+                var deptTag = (document.getElementById('num_dept_tag').value.trim() || 'DEPT').toUpperCase();
+                var deptGlobal = document.getElementById('num_dept_global').checked;
+                var deptSeq = padSeq(document.getElementById('num_dept_digits').value, 2, 6);
+                if (deptMode === 'name_slug') {
+                    document.getElementById('preview_dept').textContent = 'ITENTERP (or ITENTERP-' + deptSeq + ' if duplicate)';
+                } else {
+                    document.getElementById('preview_dept').textContent = (deptGlobal ? globalPrefix + '-' : '') + deptTag + '-' + deptSeq;
+                }
 
                 var parts = [];
                 if (empGlobal) parts.push(globalPrefix);
@@ -659,5 +697,135 @@ $error = $error ?? null;
                 </table>
             </div>
         </section>
+    </div>
+
+<?php elseif ($tab === 'master_data'): ?>
+    <div class="grid two">
+        <section class="panel">
+            <h2>Item Categories (<?= count($categories) ?>)</h2>
+            <form method="post" action="<?= e(url('/settings/master/categories')) ?>">
+                <?= csrf_field() ?>
+                <div class="grid two">
+                    <label>Category Name *<input name="name" placeholder="e.g. Computer Hardware" required></label>
+                    <label>Category Code <small class="subtitle">(Auto if blank)</small>
+                        <input name="category_code" placeholder="Auto: <?= e(\App\Services\CodeGeneratorService::nextCategoryCode()) ?>">
+                    </label>
+                </div>
+                <label>Parent Category (Optional)
+                    <select name="parent_id">
+                        <option value="">Top-level Category</option>
+                        <?php foreach ($categories as $cat): ?>
+                            <option value="<?= e($cat['id']) ?>"><?= e($cat['name']) ?> (<?= e($cat['category_code']) ?>)</option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
+                <button class="btn primary">Add Category</button>
+            </form>
+            <hr>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Name</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($categories as $cat): ?>
+                            <tr>
+                                <td><code><?= e($cat['category_code']) ?></code></td>
+                                <td><?= e($cat['name']) ?></td>
+                                <td><?= (int)$cat['is_active'] === 1 ? '<span class="badge success">Active</span>' : '<span class="badge">Inactive</span>' ?></td>
+                                <td>
+                                    <form method="post" action="<?= e(url('/settings/master/categories/' . $cat['id'] . '/delete')) ?>" class="inline">
+                                        <?= csrf_field() ?>
+                                        <button class="btn" style="color:#b91c1c;" onclick="return confirm('Delete this category?');">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <div>
+            <section class="panel">
+                <h2>Units of Measure (<?= count($units) ?>)</h2>
+                <form method="post" action="<?= e(url('/settings/master/units')) ?>" class="grid two">
+                    <?= csrf_field() ?>
+                    <label>Unit Code *<input name="unit_code" placeholder="e.g. EA, BOX, KG" required></label>
+                    <label>Unit Name *<input name="name" placeholder="e.g. Each, Box, Kilogram" required></label>
+                    <div><button class="btn primary">Add Unit</button></div>
+                </form>
+                <hr>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($units as $u): ?>
+                                <tr>
+                                    <td><code><?= e($u['unit_code']) ?></code></td>
+                                    <td><?= e($u['name']) ?></td>
+                                    <td>
+                                        <form method="post" action="<?= e(url('/settings/master/units/' . $u['id'] . '/delete')) ?>" class="inline">
+                                            <?= csrf_field() ?>
+                                            <button class="btn" style="color:#b91c1c;" onclick="return confirm('Delete this unit?');">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="panel">
+                <h2>Payment Terms (<?= count($paymentTerms) ?>)</h2>
+                <form method="post" action="<?= e(url('/settings/master/terms')) ?>" class="grid two">
+                    <?= csrf_field() ?>
+                    <label>Term Name *<input name="term_name" placeholder="e.g. Net 30" required></label>
+                    <label>Net Days *<input type="number" min="0" name="net_days" value="30" required></label>
+                    <label>Description<input name="description" placeholder="Payment due within 30 days"></label>
+                    <div style="margin-top:1.35rem;"><button class="btn primary">Add Payment Term</button></div>
+                </form>
+                <hr>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Term</th>
+                                <th>Days</th>
+                                <th>Description</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($paymentTerms as $pt): ?>
+                                <tr>
+                                    <td><strong><?= e($pt['term_name']) ?></strong></td>
+                                    <td><?= e((string)$pt['net_days']) ?></td>
+                                    <td><?= e($pt['description'] ?? '—') ?></td>
+                                    <td>
+                                        <form method="post" action="<?= e(url('/settings/master/terms/' . $pt['id'] . '/delete')) ?>" class="inline">
+                                            <?= csrf_field() ?>
+                                            <button class="btn" style="color:#b91c1c;" onclick="return confirm('Delete this term?');">Delete</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
     </div>
 <?php endif; ?>

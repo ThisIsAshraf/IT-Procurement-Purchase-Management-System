@@ -123,4 +123,35 @@ final class CatalogModel
         $stmt->execute([$name, $netDays, $description ?: null]);
         return (int)$this->db->lastInsertId();
     }
+
+    public function updateCategory(int $id, ?int $parentId, string $code, string $name, bool $isActive): void
+    {
+        $stmt = Database::connection()->prepare(
+            'UPDATE item_categories SET parent_id = ?, category_code = ?, name = ?, is_active = ? WHERE id = ?'
+        );
+        $stmt->execute([$parentId, strtoupper(trim($code)), trim($name), $isActive ? 1 : 0, $id]);
+    }
+
+    public function deleteCategory(int $id): void
+    {
+        Database::connection()->prepare('DELETE FROM item_categories WHERE id = ?')->execute([$id]);
+    }
+
+    public function updateUnit(int $id, string $code, string $name): void
+    {
+        $stmt = Database::connection()->prepare(
+            'UPDATE units_of_measure SET unit_code = ?, name = ? WHERE id = ?'
+        );
+        $stmt->execute([strtoupper(trim($code)), trim($name), $id]);
+    }
+
+    public function deleteUnit(int $id): void
+    {
+        Database::connection()->prepare('DELETE FROM units_of_measure WHERE id = ?')->execute([$id]);
+    }
+
+    public function deletePaymentTerm(int $id): void
+    {
+        Database::connection()->prepare('DELETE FROM payment_terms WHERE id = ?')->execute([$id]);
+    }
 }

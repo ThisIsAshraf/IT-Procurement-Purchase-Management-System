@@ -56,4 +56,13 @@ return static function (Router $r): void {
 
     // Audit Trail
     $r->get('/audit-logs', [AuditLogController::class, 'index']);
+
+    // Settings: Master Data (Categories, Units & Payment Terms)
+    $r->post('/settings/master/categories', [SettingsController::class, 'storeMasterCategory']);
+    $r->post('/settings/master/categories/{id}/update', [SettingsController::class, 'updateMasterCategory']);
+    $r->post('/settings/master/categories/{id}/delete', [SettingsController::class, 'deleteMasterCategory']);
+    $r->post('/settings/master/units', [SettingsController::class, 'storeMasterUnit']);
+    $r->post('/settings/master/units/{id}/delete', [SettingsController::class, 'deleteMasterUnit']);
+    $r->post('/settings/master/terms', [SettingsController::class, 'storeMasterTerm']);
+    $r->post('/settings/master/terms/{id}/delete', [SettingsController::class, 'deleteMasterTerm']);
 };

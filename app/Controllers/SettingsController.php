@@ -8,22 +8,24 @@ use App\Core\Database;
 use App\Core\Request;
 use App\Models\CatalogModel;
 use App\Models\OrganizationModel;
+use App\Services\CodeGeneratorService;
 use App\Services\MailService;
 use App\Services\SettingsService;
 
 final class SettingsController extends BaseController
 {
     private const TABS = [
-        'branding'  => 'Branding & Theme',
-        'timezone'  => 'Date & Timezone',
-        'currency'  => 'Currency & Rates',
-        'forms'     => 'Forms & Certificates',
-        'templates' => 'Email Templates',
-        'smtp'      => 'Outgoing SMTP Mail',
-        'sso'       => 'Google & Microsoft SSO',
-        'api'       => 'API Keys & RBAC',
-        'backup'    => 'Backup & Recovery',
-        'numbering' => 'ID & Code Generators',
+        'branding'    => 'Branding & Theme',
+        'timezone'    => 'Date & Timezone',
+        'currency'    => 'Currency & Rates',
+        'forms'       => 'Forms & Certificates',
+        'templates'   => 'Email Templates',
+        'smtp'        => 'Outgoing SMTP Mail',
+        'sso'         => 'Google & Microsoft SSO',
+        'api'         => 'API Keys & RBAC',
+        'backup'      => 'Backup & Recovery',
+        'numbering'   => 'ID & Code Generators',
+        'master_data' => 'Categories, Units & Terms',
     ];
 
     public function index(Request $r): void
@@ -57,8 +59,11 @@ final class SettingsController extends BaseController
             'tab'           => $tab,
             'tabs'          => self::TABS,
             's'             => SettingsService::all(),
-            'currencies' => $org->activeCurrencies(),
+            'currencies'    => $org->activeCurrencies(),
             'exchangeRates' => $cat->exchangeRates(),
+            'categories'    => $cat->categories(),
+            'units'         => $cat->units(),
+            'paymentTerms'  => $cat->paymentTerms(),
             'templates'     => $pdo->query('SELECT * FROM notification_templates ORDER BY template_key ASC')->fetchAll(),
             'queue'         => $pdo->query('SELECT * FROM notification_queue ORDER BY id DESC LIMIT 30')->fetchAll(),
             'roles'         => $pdo->query('SELECT id, name FROM roles WHERE is_active = 1 ORDER BY name')->fetchAll(),
@@ -473,22 +478,166 @@ final class SettingsController extends BaseController
         $this->require('settings.manage');
 
         SettingsService::setMany([
-            'global_id_prefix'           => strtoupper(trim((string)$r->input('global_id_prefix', 'NSG'))),
-            'sku_include_prefix'         => (int)$r->input('sku_include_prefix', 0) === 1 ? '1' : '0',
-            'sku_seq_digits'             => (string)max(2, min(8, (int)$r->input('sku_seq_digits', 4))),
-            'cat_code_mode'              => trim((string)$r->input('cat_code_mode', 'prefix_seq')),
-            'cat_code_prefix'            => strtoupper(trim((string)$r->input('cat_code_prefix', 'CAT'))),
-            'cat_include_global_prefix'  => (int)$r->input('cat_include_global_prefix', 0) === 1 ? '1' : '0',
-            'cat_seq_digits'             => (string)max(2, min(6, (int)$r->input('cat_seq_digits', 3))),
-            'emp_include_global_prefix'  => (int)$r->input('emp_include_global_prefix', 0) === 1 ? '1' : '0',
-            'emp_include_branch_code'    => (int)$r->input('emp_include_branch_code', 0) === 1 ? '1' : '0',
+            'global_id_prefix'            => strtoupper(trim((string)$r->input('global_id_prefix', 'NSG'))) ?: 'NSG',
+            'sku_include_prefix'          => (int)$r->input('sku_include_prefix', 0) === 1 ? '1' : '0',
+            'sku_seq_digits'              => (string)max(2, min(8, (int)$r->input('sku_seq_digits', 4))),
+            'cat_code_mode'               => trim((string)$r->input('cat_code_mode', 'prefix_seq')),
+            'cat_code_prefix'             => strtoupper(trim((string)$r->input('cat_code_prefix', 'CAT'))) ?: 'CAT',
+            'cat_include_global_prefix'   => (int)$r->input('cat_include_global_prefix', 0) === 1 ? '1' : '0',
+            'cat_seq_digits'              => (string)max(2, min(6, (int)$r->input('cat_seq_digits', 3))),
+            'emp_include_global_prefix'   => (int)$r->input('emp_include_global_prefix', 0) === 1 ? '1' : '0',
+            'emp_include_branch_code'     => (int)$r->input('emp_include_branch_code', 0) === 1 ? '1' : '0',
             'emp_include_tag_with_branch' => (int)$r->input('emp_include_tag_with_branch', 0) === 1 ? '1' : '0',
-            'emp_code_tag'               => strtoupper(trim((string)$r->input('emp_code_tag', 'EMP'))),
-            'emp_seq_digits'             => (string)max(2, min(8, (int)$r->input('emp_seq_digits', 4))),
+            'emp_code_tag'                => strtoupper(trim((string)$r->input('emp_code_tag', 'EMP'))) ?: 'EMP',
+            'emp_seq_digits'              => (string)max(2, min(8, (int)$r->input('emp_seq_digits', 4))),
+            'dept_code_mode'              => trim((string)$r->input('dept_code_mode', 'name_slug')),
+            'dept_code_prefix'            => strtoupper(trim((string)$r->input('dept_code_prefix', 'DEPT'))) ?: 'DEPT',
+            'dept_include_global_prefix'  => (int)$r->input('dept_include_global_prefix', 0) === 1 ? '1' : '0',
+            'dept_seq_digits'             => (string)max(2, min(6, (int)$r->input('dept_seq_digits', 3))),
         ], (int)current_user()['id']);
 
         \audit_log('settings_numbering_updated', 'settings');
         flash('success', 'Auto-numbering & ID generator rules saved.');
         redirect('/settings?tab=numbering');
+    }
+
+    public function storeMasterCategory(Request $r): void
+    {
+        $this->auth();
+        $this->csrf();
+        $this->require('settings.manage');
+
+        $name = trim((string)$r->input('name', ''));
+        $code = strtoupper(trim((string)$r->input('category_code', '')));
+        $parentId = (int)$r->input('parent_id', 0);
+
+        if ($name === '') {
+            flash('error', 'Category name is required.');
+            redirect('/settings?tab=master_data');
+        }
+        if ($code === '') {
+            $code = CodeGeneratorService::nextCategoryCode($name);
+        }
+
+        try {
+            (new CatalogModel())->createCategory($parentId > 0 ? $parentId : null, $code, $name);
+            \audit_log('item_category_created', 'item_categories', null, null, ['code' => $code, 'name' => $name]);
+            flash('success', "Category '{$name}' ({$code}) created.");
+        } catch (\Throwable $e) {
+            flash('error', $e->getMessage());
+        }
+        redirect('/settings?tab=master_data');
+    }
+
+    public function updateMasterCategory(Request $r): void
+    {
+        $this->auth();
+        $this->csrf();
+        $this->require('settings.manage');
+
+        $id = (int)($r->params()['id'] ?? 0);
+        try {
+            (new CatalogModel())->updateCategory(
+                $id,
+                ((int)$r->input('parent_id', 0)) ?: null,
+                (string)$r->input('category_code', ''),
+                (string)$r->input('name', ''),
+                (int)$r->input('is_active', 1) === 1
+            );
+            flash('success', 'Category updated.');
+        } catch (\Throwable $e) {
+            flash('error', $e->getMessage());
+        }
+        redirect('/settings?tab=master_data');
+    }
+
+    public function deleteMasterCategory(Request $r): void
+    {
+        $this->auth();
+        $this->csrf();
+        $this->require('settings.manage');
+
+        try {
+            (new CatalogModel())->deleteCategory((int)($r->params()['id'] ?? 0));
+            flash('success', 'Category deleted.');
+        } catch (\Throwable $e) {
+            flash('error', 'Cannot delete category in use: ' . $e->getMessage());
+        }
+        redirect('/settings?tab=master_data');
+    }
+
+    public function storeMasterUnit(Request $r): void
+    {
+        $this->auth();
+        $this->csrf();
+        $this->require('settings.manage');
+
+        $code = strtoupper(trim((string)$r->input('unit_code', '')));
+        $name = trim((string)$r->input('name', ''));
+        if ($code === '' || $name === '') {
+            flash('error', 'Unit code and name are required.');
+            redirect('/settings?tab=master_data');
+        }
+
+        try {
+            (new CatalogModel())->createUnit($code, $name);
+            flash('success', "Unit '{$name}' ({$code}) created.");
+        } catch (\Throwable $e) {
+            flash('error', $e->getMessage());
+        }
+        redirect('/settings?tab=master_data');
+    }
+
+    public function deleteMasterUnit(Request $r): void
+    {
+        $this->auth();
+        $this->csrf();
+        $this->require('settings.manage');
+
+        try {
+            (new CatalogModel())->deleteUnit((int)($r->params()['id'] ?? 0));
+            flash('success', 'Unit deleted.');
+        } catch (\Throwable $e) {
+            flash('error', 'Cannot delete unit in use: ' . $e->getMessage());
+        }
+        redirect('/settings?tab=master_data');
+    }
+
+    public function storeMasterTerm(Request $r): void
+    {
+        $this->auth();
+        $this->csrf();
+        $this->require('settings.manage');
+
+        $name = trim((string)$r->input('term_name', ''));
+        $days = max(0, (int)$r->input('net_days', 0));
+        $desc = trim((string)$r->input('description', ''));
+        if ($name === '') {
+            flash('error', 'Payment term name is required.');
+            redirect('/settings?tab=master_data');
+        }
+
+        try {
+            (new CatalogModel())->createPaymentTerm($name, $days, $desc);
+            flash('success', "Payment term '{$name}' created.");
+        } catch (\Throwable $e) {
+            flash('error', $e->getMessage());
+        }
+        redirect('/settings?tab=master_data');
+    }
+
+    public function deleteMasterTerm(Request $r): void
+    {
+        $this->auth();
+        $this->csrf();
+        $this->require('settings.manage');
+
+        try {
+            (new CatalogModel())->deletePaymentTerm((int)($r->params()['id'] ?? 0));
+            flash('success', 'Payment term deleted.');
+        } catch (\Throwable $e) {
+            flash('error', 'Cannot delete payment term in use: ' . $e->getMessage());
+        }
+        redirect('/settings?tab=master_data');
     }
 }

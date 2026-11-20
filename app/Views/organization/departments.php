@@ -5,9 +5,13 @@
  * @var string|null $error
  * @var array<int, array<string, mixed>> $departments
  */
+
+use App\Services\CodeGeneratorService;
+
 $flash = $flash ?? null;
 $error = $error ?? null;
 $departments = $departments ?? [];
+$deptPreview = CodeGeneratorService::nextDepartmentCode();
 ?>
 <h1>Departments</h1>
 <?php if ($flash): ?><div class="alert success"><?= e($flash) ?></div><?php endif; ?>
@@ -19,8 +23,12 @@ $departments = $departments ?? [];
             <h2>Add Department</h2>
             <form method="post" action="<?= e(url('/departments')) ?>">
                 <?= csrf_field() ?>
-                <label>Department Code<input name="department_code" maxlength="30" placeholder="e.g. IT-INFRA" required></label>
-                <label>Department Name<input name="name" placeholder="e.g. IT Infrastructure" required></label>
+                <label>Department Code <small class="subtitle">(Leave blank to auto-generate)</small>
+                    <input name="department_code" maxlength="30" placeholder="Auto: e.g. <?= e($deptPreview) ?>">
+                </label>
+                <label>Department Name
+                    <input name="name" placeholder="e.g. IT Enterprise" required>
+                </label>
                 <label>Status
                     <select name="is_active">
                         <option value="1">Active</option>
@@ -47,7 +55,7 @@ $departments = $departments ?? [];
                 <tbody>
                     <?php foreach ($departments as $d): ?>
                         <tr>
-                            <td><strong><?= e($d['department_code']) ?></strong></td>
+                            <td><code><?= e($d['department_code']) ?></code></td>
                             <td><?= e($d['name']) ?></td>
                             <td><?= (int)$d['is_active'] === 1 ? 'Active' : 'Inactive' ?></td>
                             <?php if (can('organization.manage')): ?>

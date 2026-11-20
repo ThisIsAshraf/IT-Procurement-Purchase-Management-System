@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Core\Request;
 use App\Core\Validator;
 use App\Models\OrganizationModel;
+use App\Services\CodeGeneratorService;
 
 final class DepartmentController extends BaseController
 {
@@ -14,8 +15,10 @@ final class DepartmentController extends BaseController
     {
         $this->auth();
         $this->require('organization.view');
+        $model = new OrganizationModel();
+
         $this->view('organization/departments', [
-            'departments' => (new OrganizationModel())->departments(),
+            'departments' => $model->departments(),
             'flash'       => flash('success'),
             'error'       => flash('error'),
         ]);
@@ -27,13 +30,21 @@ final class DepartmentController extends BaseController
         $this->csrf();
         $this->require('organization.manage');
 
-        $code = trim((string)$r->input('department_code'));
-        $name = trim((string)$r->input('name'));
+        $name = trim((string)$r->input('name', ''));
+        $code = strtoupper(trim((string)$r->input('department_code', '')));
         $isActive = (int)$r->input('is_active', 1) === 1 ? 1 : 0;
+
+        if ($name === '') {
+            flash('error', 'Department name is required.');
+            redirect('/departments');
+        }
+
+        if ($code === '') {
+            $code = CodeGeneratorService::nextDepartmentCode($name);
+        }
 
         $v = (new Validator())
             ->required('department_code', $code, 'Department code')
-            ->maxLength('department_code', $code, 30, 'Department code')
             ->required('name', $name, 'Department name');
 
         if ($v->fails()) {
@@ -43,8 +54,12 @@ final class DepartmentController extends BaseController
 
         try {
             $id = (new OrganizationModel())->createDepartment($code, $name, $isActive);
-            \audit_log('department_created', 'departments', $id, null, ['code' => $code, 'name' => $name]);
-            flash('success', 'Department created.');
+            \audit_log('department_created', 'departments', $id, null, [
+                'department_code' => $code,
+                'name'            => $name,
+                'is_active'       => $isActive,
+            ]);
+            flash('success', "Department '{$name}' created with code: {$code}");
         } catch (\Throwable $e) {
             flash('error', 'Could not create department: ' . $e->getMessage());
         }
@@ -58,13 +73,21 @@ final class DepartmentController extends BaseController
         $this->require('organization.manage');
 
         $id = (int)($r->params()['id'] ?? 0);
-        $code = trim((string)$r->input('department_code'));
-        $name = trim((string)$r->input('name'));
+        $name = trim((string)$r->input('name', ''));
+        $code = strtoupper(trim((string)$r->input('department_code', '')));
         $isActive = (int)$r->input('is_active', 1) === 1 ? 1 : 0;
+
+        if ($code === '' && $name !== '') {
+            $code = CodeGeneratorService::nextDepartmentCode($name);
+        }
 
         try {
             (new OrganizationModel())->updateDepartment($id, $code, $name, $isActive);
-            \audit_log('department_updated', 'departments', $id, null, ['code' => $code, 'name' => $name, 'is_active' => $isActive]);
+            \audit_log('department_updated', 'departments', $id, null, [
+                'department_code' => $code,
+                'name'            => $name,
+                'is_active'       => $isActive,
+            ]);
             flash('success', 'Department updated.');
         } catch (\Throwable $e) {
             flash('error', 'Could not update department: ' . $e->getMessage());

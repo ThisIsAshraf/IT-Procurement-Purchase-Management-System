@@ -52,6 +52,31 @@ final class CodeGeneratorService
         return self::nextSequence('item_categories', 'category_code', $base, $pad);
     }
 
+    public static function nextDepartmentCode(string $departmentName = ''): string
+    {
+        $mode = SettingsService::get('dept_code_mode', 'name_slug'); // name_slug | prefix_seq
+        $pad = max(2, min(6, (int)SettingsService::get('dept_seq_digits', '3')));
+
+        if ($mode === 'name_slug' && trim($departmentName) !== '') {
+            // Build clean uppercase acronym or slug (e.g. "IT Enterprise" -> "ITENTERP" or "DEPT-001")
+            $slug = strtoupper(preg_replace('/[^A-Za-z0-9]+/', '', $departmentName) ?: 'DEPT');
+            $slug = substr($slug, 0, 8);
+            $pdo = Database::connection();
+            $chk = $pdo->prepare('SELECT COUNT(*) FROM departments WHERE department_code = ?');
+            $chk->execute([$slug]);
+            if ((int)$chk->fetchColumn() === 0) {
+                return $slug;
+            }
+            return self::nextSequence('departments', 'department_code', $slug . '-', $pad);
+        }
+
+        $deptPrefix = strtoupper(trim(SettingsService::get('dept_code_prefix', 'DEPT')));
+        $useGlobal = SettingsService::get('dept_include_global_prefix', '0') === '1';
+        $base = ($useGlobal ? self::globalPrefix() . '-' : '') . ($deptPrefix !== '' ? $deptPrefix : 'DEPT') . '-';
+
+        return self::nextSequence('departments', 'department_code', $base, $pad);
+    }
+
     public static function nextEmployeeNumber(int $branchId = 0): string
     {
         $useGlobal = SettingsService::get('emp_include_global_prefix', '1') === '1';
