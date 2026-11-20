@@ -61,6 +61,13 @@ if (!function_exists('flash')) {
     }
 }
 
+if (!function_exists('old')) {
+    function old(string $key, mixed $default = ''): mixed
+    {
+        return $_SESSION['_old'][$key] ?? $default;
+    }
+}
+
 if (!function_exists('current_user')) {
     function current_user(): ?array
     {
@@ -68,9 +75,19 @@ if (!function_exists('current_user')) {
     }
 }
 
+if (!function_exists('has_role')) {
+    function has_role(string $roleKey): bool
+    {
+        return !empty($_SESSION['roles']) && in_array($roleKey, $_SESSION['roles'], true);
+    }
+}
+
 if (!function_exists('can')) {
     function can(string $permission): bool
     {
+        if (has_role('super_admin')) {
+            return true;
+        }
         return !empty($_SESSION['permissions']) && in_array($permission, $_SESSION['permissions'], true);
     }
 }
@@ -89,8 +106,28 @@ if (!function_exists('require_permission')) {
     }
 }
 
+if (!function_exists('branch_scope_ids')) {
+    /**
+     * Returns null when user has global unrestricted branch access,
+     * or an array of integer branch IDs the user is restricted to.
+     *
+     * @return int[]|null
+     */
+    function branch_scope_ids(): ?array
+    {
+        if (!current_user() || has_role('super_admin')) {
+            return null;
+        }
+        $scopes = $_SESSION['user']['branch_scopes'] ?? [];
+        if (empty($scopes)) {
+            return null;
+        }
+        return array_map('intval', $scopes);
+    }
+}
+
 if (!function_exists('money')) {
-    function money(int|float|string $amount, string $currency): string
+    function money(int|float|string $amount, string $currency = 'USD'): string
     {
         return e($currency) . ' ' . number_format((float)$amount, 2);
     }
@@ -109,8 +146,8 @@ if (!function_exists('audit_log')) {
                 $id,
                 $_SERVER['REMOTE_ADDR'] ?? null,
                 substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255),
-                $before === null ? null : json_encode($before),
-                $after === null ? null : json_encode($after),
+                $before === null ? null : json_encode($before, JSON_UNESCAPED_UNICODE),
+                $after === null ? null : json_encode($after, JSON_UNESCAPED_UNICODE),
             ]);
         } catch (\Throwable $e) {
             error_log('Audit log: ' . $e->getMessage());
