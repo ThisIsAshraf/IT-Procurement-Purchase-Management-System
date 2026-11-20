@@ -147,4 +147,12 @@ final class PurchaseOrderController extends BaseController
         flash('success', 'Purchase Order cancelled.');
         redirect('/purchase_orders/' . $id);
     }
+
+    public function downloadPdf(Request $r): void
+    {
+        $this->auth();
+        $this->require('purchase_orders.view');
+        $id = (int)($r->params()['id'] ?? 0);
+        \App\Services\PdfService::downloadPurchaseOrder($id);
+    }
 }
