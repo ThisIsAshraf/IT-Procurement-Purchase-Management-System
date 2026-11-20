@@ -154,3 +154,18 @@ if (!function_exists('audit_log')) {
         }
     }
 }
+
+function format_dt(?string $datetime): string
+{
+    if (!$datetime) {
+        return '—';
+    }
+    $ts = strtotime($datetime);
+    if ($ts === false) {
+        return e($datetime);
+    }
+    $fmt = \App\Services\SettingsService::get('date_format', 'Y-m-d')
+        . ' '
+        . \App\Services\SettingsService::get('time_format', 'h:i:s A');
+    return date($fmt, $ts);
+}
