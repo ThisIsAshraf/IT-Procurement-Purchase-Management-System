@@ -127,7 +127,7 @@ $error = $error ?? null;
 
 <?php elseif ($tab === 'numbering'): ?>
     <section class="panel">
-        <form method="post" action="<?= e(url('/settings/numbering')) ?>">
+        <form method="post" action="<?= e(url('/settings/numbering')) ?>" id="numbering-form">
             <?= csrf_field() ?>
             <div class="page-header">
                 <div>
@@ -138,61 +138,121 @@ $error = $error ?? null;
             </div>
 
             <label>Global Organization Prefix
-                <input name="global_id_prefix" value="<?= e($s['global_id_prefix'] ?? 'NSG') ?>" maxlength="10">
+                <input id="num_global_prefix" name="global_id_prefix" value="<?= e($s['global_id_prefix'] ?? 'NSG') ?>" maxlength="10">
             </label>
 
             <div class="grid three">
                 <div class="panel" style="background:#f8fafc;">
                     <h3>1. Catalog Item SKU</h3>
                     <label class="inline" style="margin-bottom:0.6rem;">
-                        <input type="checkbox" name="sku_include_prefix" value="1" <?= ($s['sku_include_prefix'] ?? '1') === '1' ? 'checked' : '' ?>>
-                        Include Global Prefix (<code><?= e($s['global_id_prefix'] ?? 'NSG') ?></code>)
+                        <input type="checkbox" id="num_sku_prefix" name="sku_include_prefix" value="1" <?= ($s['sku_include_prefix'] ?? '1') === '1' ? 'checked' : '' ?>>
+                        Include Global Prefix (<code id="lbl_sku_prefix"><?= e($s['global_id_prefix'] ?? 'NSG') ?></code>)
                     </label>
                     <label>Sequence Digits (Zero-Padding)
-                        <input type="number" min="2" max="8" name="sku_seq_digits" value="<?= e($s['sku_seq_digits'] ?? '4') ?>">
+                        <input type="number" min="2" max="8" id="num_sku_digits" name="sku_seq_digits" value="<?= e($s['sku_seq_digits'] ?? '4') ?>">
                     </label>
-                    <small class="subtitle">Preview: <code><?= e((($s['sku_include_prefix'] ?? '1') === '1' ? ($s['global_id_prefix'] ?? 'NSG') . '-' : '') . 'HARDWARE-' . str_pad('1', (int)($s['sku_seq_digits'] ?? 4), '0', STR_PAD_LEFT)) ?></code></small>
+                    <small class="subtitle">Preview: <code id="preview_sku"></code></small>
                 </div>
 
                 <div class="panel" style="background:#f8fafc;">
                     <h3>2. Item Category Code</h3>
                     <label>Generation Mode
-                        <select name="cat_code_mode">
+                        <select id="num_cat_mode" name="cat_code_mode">
                             <option value="prefix_seq" <?= ($s['cat_code_mode'] ?? 'prefix_seq') === 'prefix_seq' ? 'selected' : '' ?>>Prefix + Sequence (e.g. CAT-001)</option>
                             <option value="name_slug" <?= ($s['cat_code_mode'] ?? '') === 'name_slug' ? 'selected' : '' ?>>Auto-Slug from Category Name</option>
                         </select>
                     </label>
-                    <label>Category Prefix Tag<input name="cat_code_prefix" value="<?= e($s['cat_code_prefix'] ?? 'CAT') ?>"></label>
+                    <label>Category Prefix Tag
+                        <input id="num_cat_tag" name="cat_code_prefix" value="<?= e($s['cat_code_prefix'] ?? 'CAT') ?>">
+                    </label>
                     <label class="inline" style="margin-bottom:0.6rem;">
-                        <input type="checkbox" name="cat_include_global_prefix" value="1" <?= ($s['cat_include_global_prefix'] ?? '0') === '1' ? 'checked' : '' ?>>
+                        <input type="checkbox" id="num_cat_global" name="cat_include_global_prefix" value="1" <?= ($s['cat_include_global_prefix'] ?? '0') === '1' ? 'checked' : '' ?>>
                         Include Global Prefix
                     </label>
-                    <label>Sequence Digits<input type="number" min="2" max="6" name="cat_seq_digits" value="<?= e($s['cat_seq_digits'] ?? '3') ?>"></label>
+                    <label>Sequence Digits
+                        <input type="number" min="2" max="6" id="num_cat_digits" name="cat_seq_digits" value="<?= e($s['cat_seq_digits'] ?? '3') ?>">
+                    </label>
+                    <small class="subtitle">Preview: <code id="preview_cat"></code></small>
                 </div>
 
                 <div class="panel" style="background:#f8fafc;">
                     <h3>3. Employee ID / Code</h3>
                     <label class="inline" style="display:block; margin-bottom:4px;">
-                        <input type="checkbox" name="emp_include_global_prefix" value="1" <?= ($s['emp_include_global_prefix'] ?? '1') === '1' ? 'checked' : '' ?>>
-                        Include Global Prefix (<code><?= e($s['global_id_prefix'] ?? 'NSG') ?></code>)
+                        <input type="checkbox" id="num_emp_global" name="emp_include_global_prefix" value="1" <?= ($s['emp_include_global_prefix'] ?? '1') === '1' ? 'checked' : '' ?>>
+                        Include Global Prefix (<code id="lbl_emp_prefix"><?= e($s['global_id_prefix'] ?? 'NSG') ?></code>)
                     </label>
                     <label class="inline" style="display:block; margin-bottom:4px;">
-                        <input type="checkbox" name="emp_include_branch_code" value="1" <?= ($s['emp_include_branch_code'] ?? '1') === '1' ? 'checked' : '' ?>>
+                        <input type="checkbox" id="num_emp_branch" name="emp_include_branch_code" value="1" <?= ($s['emp_include_branch_code'] ?? '1') === '1' ? 'checked' : '' ?>>
                         Include Branch Code (e.g. <code>DHK</code>, <code>NYC</code>)
                     </label>
                     <label class="inline" style="display:block; margin-bottom:0.6rem;">
-                        <input type="checkbox" name="emp_include_tag_with_branch" value="1" <?= ($s['emp_include_tag_with_branch'] ?? '0') === '1' ? 'checked' : '' ?>>
+                        <input type="checkbox" id="num_emp_tag_branch" name="emp_include_tag_with_branch" value="1" <?= ($s['emp_include_tag_with_branch'] ?? '0') === '1' ? 'checked' : '' ?>>
                         Include Employee Tag alongside Branch
                     </label>
                     <div class="grid two">
-                        <label>Employee Tag<input name="emp_code_tag" value="<?= e($s['emp_code_tag'] ?? 'EMP') ?>"></label>
-                        <label>Sequence Digits<input type="number" min="2" max="8" name="emp_seq_digits" value="<?= e($s['emp_seq_digits'] ?? '4') ?>"></label>
+                        <label>Employee Tag<input id="num_emp_tag" name="emp_code_tag" value="<?= e($s['emp_code_tag'] ?? 'EMP') ?>" placeholder="EMP"></label>
+                        <label>Sequence Digits<input type="number" min="2" max="8" id="num_emp_digits" name="emp_seq_digits" value="<?= e($s['emp_seq_digits'] ?? '4') ?>"></label>
                     </div>
-                    <small class="subtitle">Preview: <code><?= e((($s['emp_include_global_prefix'] ?? '1') === '1' ? ($s['global_id_prefix'] ?? 'NSG') . '-' : '') . (($s['emp_include_branch_code'] ?? '1') === '1' ? 'DHK-' : ($s['emp_code_tag'] ?? 'EMP') . '-') . str_pad('1', (int)($s['emp_seq_digits'] ?? 4), '0', STR_PAD_LEFT)) ?></code></small>
+                    <small class="subtitle">Preview: <code id="preview_emp"></code></small>
                 </div>
             </div>
         </form>
     </section>
+
+    <script>
+        (function() {
+            function padSeq(digits, min, max) {
+                var d = Math.max(min, Math.min(max, parseInt(digits, 10) || min));
+                return '1'.padStart(d, '0');
+            }
+
+            function updatePreviews() {
+                var globalPrefix = (document.getElementById('num_global_prefix').value.trim() || 'NSG').toUpperCase();
+                document.getElementById('lbl_sku_prefix').textContent = globalPrefix;
+                document.getElementById('lbl_emp_prefix').textContent = globalPrefix;
+
+                // 1. SKU Preview
+                var skuPrefix = document.getElementById('num_sku_prefix').checked;
+                var skuSeq = padSeq(document.getElementById('num_sku_digits').value, 2, 8);
+                document.getElementById('preview_sku').textContent = (skuPrefix ? globalPrefix + '-' : '') + 'HARDWARE-' + skuSeq;
+
+                // 2. Category Code Preview
+                var catMode = document.getElementById('num_cat_mode').value;
+                var catTag = (document.getElementById('num_cat_tag').value.trim() || 'CAT').toUpperCase();
+                var catGlobal = document.getElementById('num_cat_global').checked;
+                var catSeq = padSeq(document.getElementById('num_cat_digits').value, 2, 6);
+                if (catMode === 'name_slug') {
+                    document.getElementById('preview_cat').textContent = 'HARDWARE (or HARDWARE-' + catSeq + ' if duplicate)';
+                } else {
+                    document.getElementById('preview_cat').textContent = (catGlobal ? globalPrefix + '-' : '') + catTag + '-' + catSeq;
+                }
+
+                // 3. Employee ID Preview
+                var empGlobal = document.getElementById('num_emp_global').checked;
+                var empBranch = document.getElementById('num_emp_branch').checked;
+                var empTagWithBranch = document.getElementById('num_emp_tag_branch').checked;
+                var empTag = (document.getElementById('num_emp_tag').value.trim() || 'EMP').toUpperCase();
+                var empSeq = padSeq(document.getElementById('num_emp_digits').value, 2, 8);
+
+                var parts = [];
+                if (empGlobal) parts.push(globalPrefix);
+                if (empBranch) parts.push('DHK');
+                if (!empBranch || parts.length === 0) {
+                    parts.push(empTag);
+                } else if (empTagWithBranch) {
+                    parts.push(empTag);
+                }
+                document.getElementById('preview_emp').textContent = parts.join('-') + '-' + empSeq;
+            }
+
+            var form = document.getElementById('numbering-form');
+            if (form) {
+                form.addEventListener('input', updatePreviews);
+                form.addEventListener('change', updatePreviews);
+                updatePreviews();
+            }
+        })();
+    </script>
 
 <?php elseif ($tab === 'timezone'): ?>
     <section class="panel">
