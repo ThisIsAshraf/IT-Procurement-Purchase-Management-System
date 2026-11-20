@@ -1,0 +1,2 @@
+<?php
+declare(strict_types=1);namespace App\Controllers;use App\Core\Request;final class TemplateController extends BaseController{public function vendor(Request $r):void{$this->auth();$this->require('imports.manage');header('Content-Type:text/csv');header('Content-Disposition:attachment; filename="vendor_import_template.csv"');$o=fopen('php://output','w');fputcsv($o,['vendor_code','legal_name','tax_registration_no','website','status','notes']);fputcsv($o,['VND-0001','Example Vendor','','https://example.com','pending','Sample row']);fclose($o);}}

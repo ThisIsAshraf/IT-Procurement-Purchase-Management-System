@@ -1,0 +1,133 @@
+# Project Structure: nsg_procurement
+# Generated: 2026-11-20 06:29:31 CET
+# Excluded: .git, .github, .vscode, .idea, vendor, node_modules, .DS_Store, Thumbs.db, .env, folder_tree.txt
+# Summary: 39 directories, 87 files
+
+nsg_procurement/
+│
+├── app/
+│   ├── Controllers/
+│   │   ├── .gitkeep
+│   │   ├── ApprovalController.php
+│   │   ├── ApprovalWorkflowController.php
+│   │   ├── AuthController.php
+│   │   ├── BaseController.php
+│   │   ├── BranchController.php
+│   │   ├── BudgetController.php
+│   │   ├── CatalogController.php
+│   │   ├── DashboardController.php
+│   │   ├── DeliveryController.php
+│   │   ├── DepartmentController.php
+│   │   ├── HealthController.php
+│   │   ├── ImportController.php
+│   │   ├── InvoiceController.php
+│   │   ├── PaymentController.php
+│   │   ├── PurchaseOrderController.php
+│   │   ├── PurchaseRequestController.php
+│   │   ├── QuotationController.php
+│   │   ├── ReportController.php
+│   │   ├── RequisitionController.php
+│   │   ├── ResourceController.php
+│   │   ├── TemplateController.php
+│   │   ├── UserController.php
+│   │   └── VendorController.php
+│   ├── Core/
+│   │   ├── Application.php
+│   │   ├── Database.php
+│   │   ├── Request.php
+│   │   ├── Response.php
+│   │   ├── Router.php
+│   │   └── View.php
+│   ├── Middleware/
+│   │   ├── AuthMiddleware.php
+│   │   └── CsrfMiddleware.php
+│   ├── Models/
+│   │   ├── .gitkeep
+│   │   └── AuthModel.php
+│   ├── Services/
+│   │   ├── .gitkeep
+│   │   └── MailService.php
+│   ├── Views/
+│   │   ├── approvals/
+│   │   │   ├── .gitkeep
+│   │   │   ├── index.php
+│   │   │   └── workflows.php
+│   │   ├── auth/
+│   │   │   └── login.php
+│   │   ├── dashboard/
+│   │   │   └── index.php
+│   │   ├── deliveries/
+│   │   │   └── .gitkeep
+│   │   ├── imports/
+│   │   │   └── index.php
+│   │   ├── invoices/
+│   │   │   └── .gitkeep
+│   │   ├── payments/
+│   │   │   └── .gitkeep
+│   │   ├── purchase_orders/
+│   │   │   └── .gitkeep
+│   │   ├── purchase_requests/
+│   │   │   └── .gitkeep
+│   │   ├── quotations/
+│   │   │   └── .gitkeep
+│   │   ├── reports/
+│   │   │   ├── .gitkeep
+│   │   │   └── index.php
+│   │   ├── requisitions/
+│   │   │   └── .gitkeep
+│   │   ├── resources/
+│   │   │   └── index.php
+│   │   ├── users/
+│   │   │   └── index.php
+│   │   ├── vendors/
+│   │   │   └── .gitkeep
+│   │   └── layout.php
+│   ├── bootstrap.php
+│   └── helpers.php
+├── config/
+│   ├── app.php
+│   ├── database.php
+│   ├── mail.php
+│   └── permissions.php
+├── database/
+│   ├── migrations/
+│   │   └── 2026_11_20_000001_initial_schema.sql
+│   ├── seeders/
+│   │   └── seed.sql
+│   └── schema.sql
+├── docs/
+│   ├── templates/
+│   │   └── vendor_import_template.csv
+│   ├── ADMIN_GUIDE.md
+│   ├── DATABASE_DESIGN.md
+│   ├── DEPLOYMENT_GUIDE.md
+│   ├── FEATURE_MATRIX.md
+│   └── USER_GUIDE.md
+├── public/
+│   ├── assets/
+│   │   └── css/
+│   │       └── app.css
+│   ├── uploads/  [runtime files omitted]
+│   ├── .htaccess
+│   └── index.php
+├── routes/
+│   ├── api.php
+│   └── web.php
+├── scripts/
+│   ├── create_admin.php
+│   ├── migrate.php
+│   ├── send_mail_queue.php
+│   └── smoke_test.php
+├── storage/
+│   ├── backups/  [runtime files omitted]
+│   ├── exports/
+│   │   └── .gitkeep
+│   ├── logs/  [runtime files omitted]
+│   ├── uploads/  [runtime files omitted]
+│   └── .htaccess
+├── .env.example
+├── .gitignore
+├── composer.json
+├── composer.lock
+├── generate_tree.php
+└── README.md

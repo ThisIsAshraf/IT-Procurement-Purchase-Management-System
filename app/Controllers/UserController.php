@@ -1,0 +1,8 @@
+<?php
+declare(strict_types=1);
+namespace App\Controllers;
+use App\Core\Database;use App\Core\Request;
+final class UserController extends BaseController {
+ public function index(Request $r):void{$this->auth();$this->require('users.manage');$pdo=Database::connection();$users=$pdo->query('SELECT id,full_name,email,status,last_login_at,created_at FROM users ORDER BY id DESC LIMIT 250')->fetchAll();$roles=$pdo->query('SELECT id,name FROM roles WHERE is_active=1 ORDER BY name')->fetchAll();$this->view('users/index',['users'=>$users,'roles'=>$roles,'flash'=>flash('success'),'error'=>flash('error')]);}
+ public function store(Request $r):void{$this->auth();$this->csrf();$this->require('users.manage');$name=trim((string)$r->input('full_name'));$email=filter_var(trim((string)$r->input('email')),FILTER_VALIDATE_EMAIL);$password=(string)$r->input('password');$role=(int)$r->input('role_id');if($name===''||!$email||strlen($password)<12||$role<1){flash('error','Enter a name, valid email, password (12+ characters), and role.');redirect('/users');}$pdo=Database::connection();try{$pdo->beginTransaction();$pdo->prepare("INSERT INTO users(full_name,email,password_hash,status) VALUES(?,?,?,'active')")->execute([$name,$email,password_hash($password,PASSWORD_DEFAULT)]);$id=(int)$pdo->lastInsertId();$pdo->prepare('INSERT INTO user_roles(user_id,role_id,assigned_by) VALUES(?,?,?)')->execute([$id,$role,current_user()['id']]);$pdo->commit();\audit_log('user_created','users',$id,null,['email'=>$email,'role_id'=>$role]);flash('success','User created.');}catch(\Throwable $e){$pdo->rollBack();flash('error','Could not create user: '.$e->getMessage());}redirect('/users');}
+}

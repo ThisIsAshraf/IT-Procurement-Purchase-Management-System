@@ -1,0 +1,2 @@
+-- Initial schema is maintained in database/schema.sql for fresh installations.
+-- The migration runner records this baseline after applying schema.sql.

@@ -1,0 +1,31 @@
+<?php
+declare(strict_types=1);
+use App\Core\Router;use App\Controllers\AuthController;use App\Controllers\DashboardController;use App\Controllers\HealthController;use App\Controllers\ApprovalController;use App\Controllers\ReportController;use App\Controllers\ImportController;use App\Controllers\TemplateController;use App\Controllers\UserController;use App\Controllers\ApprovalWorkflowController;
+use App\Controllers\VendorController;
+use App\Controllers\PurchaseRequestController;
+use App\Controllers\RequisitionController;
+use App\Controllers\QuotationController;
+use App\Controllers\PurchaseOrderController;
+use App\Controllers\DeliveryController;
+use App\Controllers\InvoiceController;
+use App\Controllers\PaymentController;
+use App\Controllers\BudgetController;
+use App\Controllers\CatalogController;
+use App\Controllers\BranchController;
+use App\Controllers\DepartmentController;
+return static function(Router $r):void {
+$r->get('/login',[AuthController::class,'show']);$r->post('/login',[AuthController::class,'login']);$r->post('/logout',[AuthController::class,'logout']);$r->get('/',[DashboardController::class,'index']);$r->get('/health',[HealthController::class,'status']);
+$r->get('/vendors',[VendorController::class,'index']);$r->post('/vendors',[VendorController::class,'store']);
+$r->get('/purchase_requests',[PurchaseRequestController::class,'index']);$r->post('/purchase_requests',[PurchaseRequestController::class,'store']);
+$r->get('/requisitions',[RequisitionController::class,'index']);$r->post('/requisitions',[RequisitionController::class,'store']);
+$r->get('/quotations',[QuotationController::class,'index']);$r->post('/quotations',[QuotationController::class,'store']);
+$r->get('/purchase_orders',[PurchaseOrderController::class,'index']);$r->post('/purchase_orders',[PurchaseOrderController::class,'store']);
+$r->get('/deliveries',[DeliveryController::class,'index']);$r->post('/deliveries',[DeliveryController::class,'store']);
+$r->get('/invoices',[InvoiceController::class,'index']);$r->post('/invoices',[InvoiceController::class,'store']);
+$r->get('/payments',[PaymentController::class,'index']);$r->post('/payments',[PaymentController::class,'store']);
+$r->get('/budgets',[BudgetController::class,'index']);$r->post('/budgets',[BudgetController::class,'store']);
+$r->get('/catalog',[CatalogController::class,'index']);$r->post('/catalog',[CatalogController::class,'store']);
+$r->get('/organization',[BranchController::class,'index']);$r->post('/organization',[BranchController::class,'store']);
+$r->get('/departments',[DepartmentController::class,'index']);$r->post('/departments',[DepartmentController::class,'store']);
+$r->get('/users',[UserController::class,'index']);$r->post('/users',[UserController::class,'store']);$r->get('/approval-workflows',[ApprovalWorkflowController::class,'index']);$r->post('/approval-workflows',[ApprovalWorkflowController::class,'store']);$r->get('/approvals',[ApprovalController::class,'index']);$r->post('/approvals/act',[ApprovalController::class,'act']);$r->get('/reports',[ReportController::class,'index']);$r->get('/reports/export',[ReportController::class,'export']);$r->get('/imports',[ImportController::class,'index']);$r->post('/imports',[ImportController::class,'upload']);$r->get('/imports/vendor-template',[TemplateController::class,'vendor']);
+};
