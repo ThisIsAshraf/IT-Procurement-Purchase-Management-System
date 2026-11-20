@@ -23,10 +23,21 @@ return static function (Router $r): void {
     $r->get('/imports/catalog-template', [TemplateController::class, 'catalog']);
     $r->get('/imports/budget-template', [TemplateController::class, 'budget']);
 
-    // System Settings, Email Queue & Audit Logs
+    // Site Settings Tabs & Actions
     $r->get('/settings', [SettingsController::class, 'index']);
-    $r->post('/settings', [SettingsController::class, 'saveSetting']);
+    $r->post('/settings/branding', [SettingsController::class, 'saveBranding']);
+    $r->post('/settings/timezone', [SettingsController::class, 'saveTimezone']);
+    $r->post('/settings/currency', [SettingsController::class, 'saveCurrency']);
+    $r->post('/settings/forms', [SettingsController::class, 'saveForms']);
     $r->post('/settings/templates', [SettingsController::class, 'saveTemplate']);
-    $r->post('/settings/dispatch-queue', [SettingsController::class, 'dispatchQueue']);
+    $r->post('/settings/smtp', [SettingsController::class, 'saveSmtp']);
+    $r->post('/settings/smtp-test', [SettingsController::class, 'sendTestEmail']);
+    $r->post('/settings/sso', [SettingsController::class, 'saveSso']);
+    $r->post('/settings/api-keys', [SettingsController::class, 'createApiKey']);
+    $r->post('/settings/api-keys/{id}/revoke', [SettingsController::class, 'revokeApiKey']);
+    $r->post('/settings/backup/create', [SettingsController::class, 'createBackup']);
+    $r->post('/settings/backup/policy', [SettingsController::class, 'saveBackupPolicy']);
+
+    // Audit Trail
     $r->get('/audit-logs', [AuditLogController::class, 'index']);
 };

@@ -555,3 +555,257 @@ code {
   padding: 2rem;
   box-shadow: var(--shadow);
 }
+
+/* Split-Screen Enterprise Login */
+body.guest-layout {
+  margin: 0;
+  background: #ffffff;
+}
+.split-login {
+  display: flex;
+  min-height: 100vh;
+}
+.split-login-brand {
+  flex: 1;
+  background: linear-gradient(145deg, #6b1426 0%, #3b1929 55%, #1e2436 100%);
+  color: #ffffff;
+  padding: 2.5rem 3.5rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.split-login-brand .logo-box.text-logo {
+  display: inline-flex;
+  flex-direction: column;
+  background: #ffffff;
+  color: #831b30;
+  padding: 0.45rem 0.85rem;
+  border-radius: 6px;
+  font-weight: 800;
+  line-height: 1.05;
+  width: fit-content;
+}
+.split-login-brand .logo-box .nsg-mark {
+  font-size: 1.35rem;
+  letter-spacing: 0.04em;
+}
+.split-login-brand .logo-box .nsg-sub {
+  font-size: 0.55rem;
+  letter-spacing: 0.14em;
+  color: #334155;
+}
+.split-login-brand .pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 2.25rem;
+  padding: 0.3rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  font-size: 0.78rem;
+  width: fit-content;
+}
+.split-login-brand h1 {
+  color: #ffffff;
+  font-size: 2.25rem;
+  margin: 1rem 0 0.75rem 0;
+  line-height: 1.2;
+}
+.split-login-brand .lead {
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 1rem;
+  max-width: 480px;
+}
+.split-login-brand .brand-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+.split-login-form {
+  flex: 1;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+.login-box {
+  width: 100%;
+  max-width: 390px;
+}
+.login-box h2 {
+  font-size: 1.5rem;
+  margin-bottom: 0.25rem;
+}
+.login-box .muted {
+  color: var(--muted);
+  margin-top: 0;
+  margin-bottom: 1.35rem;
+  font-size: 0.88rem;
+}
+.sso-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 1.1rem;
+}
+.sso-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #1e293b;
+  font-weight: 600;
+  font-size: 0.88rem;
+  background: #ffffff;
+}
+.sso-btn:hover {
+  background: #f8fafc;
+  text-decoration: none;
+}
+.divider {
+  text-align: center;
+  border-bottom: 1px solid #e2e8f0;
+  line-height: 0.1em;
+  margin: 1.25rem 0 1.4rem;
+}
+.divider span {
+  background: #fff;
+  padding: 0 10px;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+.input-icon-wrap {
+  position: relative;
+}
+.input-icon-wrap .field-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+.input-icon-wrap input {
+  padding-left: 2.1rem;
+}
+.full-btn {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  margin-top: 0.4rem;
+}
+.security-note {
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.76rem;
+  margin-top: 1.25rem;
+}
+
+/* Collapsible Sidebar Site Settings Accordion */
+.nav-accordion summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.nav-accordion summary::-webkit-details-marker {
+  display: none;
+}
+.nav-accordion[open] summary .chev {
+  transform: rotate(180deg);
+}
+.nav-submenu {
+  padding-left: 0.85rem;
+  margin-top: 4px;
+  border-left: 1px solid rgba(255, 255, 255, 0.16);
+  margin-left: 0.65rem;
+}
+.nav-sublink {
+  display: block;
+  padding: 0.36rem 0.65rem;
+  font-size: 0.82rem;
+  color: var(--sidebar-text, #e2e8f0);
+  opacity: 0.85;
+  border-radius: 6px;
+  margin: 2px 0;
+}
+.nav-sublink:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+  text-decoration: none;
+}
+.nav-sublink.active {
+  opacity: 1;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 600;
+}
+.sidebar-logo-wrap {
+  display: inline-block;
+  background: #fff;
+  padding: 4px 8px;
+  border-radius: 6px;
+  margin-bottom: 0.45rem;
+}
+
+/* Horizontal Settings Tab Bar & Color Inputs */
+.settings-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  background: #ffffff;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 1.25rem;
+}
+.settings-tab {
+  padding: 0.45rem 0.85rem;
+  border-radius: 7px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #334155;
+  text-decoration: none;
+}
+.settings-tab:hover {
+  background: #f1f5f9;
+  text-decoration: none;
+}
+.settings-tab.active {
+  background: var(--primary);
+  color: #ffffff;
+}
+.color-pair {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.3rem;
+}
+.color-pair input[type="color"] {
+  width: 48px;
+  height: 36px;
+  padding: 2px;
+  margin-top: 0;
+  cursor: pointer;
+}
+.color-pair input:not([type="color"]) {
+  margin-top: 0;
+}
+
+@media (max-width: 860px) {
+  .split-login {
+    flex-direction: column;
+  }
+  .split-login-brand {
+    padding: 2rem;
+  }
+}
