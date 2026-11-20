@@ -370,4 +370,98 @@ final class SettingsController extends BaseController
         flash('success', 'Automated backup policy saved.');
         redirect('/settings?tab=backup');
     }
+
+    private function resolveBackupPath(string $filename): string
+    {
+        $clean = basename($filename);
+        if ($clean === '' || !preg_match('/^[A-Za-z0-9._-]+\.(sql|zip|tar\.gz)$/', $clean)) {
+            throw new \RuntimeException('Invalid backup filename.');
+        }
+        return dirname(__DIR__, 2) . '/storage/backups/' . $clean;
+    }
+
+    public function downloadBackup(Request $r): void
+    {
+        $this->auth();
+        $this->require('settings.manage');
+
+        try {
+            $path = $this->resolveBackupPath((string)$r->input('file', ''));
+            if (!is_file($path)) {
+                throw new \RuntimeException('Backup file not found.');
+            }
+            header('Content-Type: application/sql');
+            header('Content-Disposition: attachment; filename="' . basename($path) . '"');
+            header('Content-Length: ' . (string)filesize($path));
+            readfile($path);
+            exit;
+        } catch (\Throwable $e) {
+            flash('error', $e->getMessage());
+            redirect('/settings?tab=backup');
+        }
+    }
+
+    public function deleteBackup(Request $r): void
+    {
+        $this->auth();
+        $this->csrf();
+        $this->require('settings.manage');
+
+        try {
+            $path = $this->resolveBackupPath((string)$r->input('file', ''));
+            if (is_file($path)) {
+                unlink($path);
+                \audit_log('database_backup_deleted', 'settings', null, null, ['file' => basename($path)]);
+                flash('success', 'Backup archive deleted: ' . basename($path));
+            }
+        } catch (\Throwable $e) {
+            flash('error', $e->getMessage());
+        }
+        redirect('/settings?tab=backup');
+    }
+
+    public function restoreBackup(Request $r): void
+    {
+        $this->auth();
+        $this->csrf();
+        $this->require('settings.manage');
+
+        try {
+            $sql = '';
+            $uploaded = $r->files()['backup_file'] ?? null;
+            if ($uploaded && ($uploaded['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+                $ext = strtolower(pathinfo((string)$uploaded['name'], PATHINFO_EXTENSION));
+                if ($ext !== 'sql') {
+                    throw new \RuntimeException('Please upload a valid .sql backup dump.');
+                }
+                $sql = (string)file_get_contents((string)$uploaded['tmp_name']);
+            } else {
+                $path = $this->resolveBackupPath((string)$r->input('file', ''));
+                if (!is_file($path)) {
+                    throw new \RuntimeException('Selected backup file does not exist.');
+                }
+                $sql = (string)file_get_contents($path);
+            }
+
+            if (trim($sql) === '') {
+                throw new \RuntimeException('Backup SQL file is empty.');
+            }
+
+            $pdo = Database::connection();
+            $pdo->exec('SET FOREIGN_KEY_CHECKS=0;');
+            foreach (preg_split('/;\s*[\r\n]+/', $sql) ?: [] as $stmt) {
+                $stmt = trim($stmt);
+                if ($stmt !== '' && !str_starts_with($stmt, '--')) {
+                    $pdo->exec($stmt);
+                }
+            }
+            $pdo->exec('SET FOREIGN_KEY_CHECKS=1;');
+
+            \audit_log('database_backup_restored', 'settings');
+            flash('success', 'Database restored successfully.');
+        } catch (\Throwable $e) {
+            flash('error', 'Restore failed: ' . $e->getMessage());
+        }
+        redirect('/settings?tab=backup');
+    }
 }

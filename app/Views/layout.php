@@ -30,7 +30,7 @@ $inSettings = ($currentPath === '/settings' || str_starts_with($currentPath, '/s
 
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <title><?= e($appTitle) ?></title>
     <link rel="stylesheet" href="<?= e(url('/assets/css/app.css')) ?>">
     <style>
@@ -44,17 +44,29 @@ $inSettings = ($currentPath === '/settings' || str_starts_with($currentPath, '/s
 
 <body class="<?= current_user() ? 'has-sidebar' : 'guest-layout' ?>">
     <?php if (current_user()): ?>
+        <header class="mobile-header">
+            <button type="button" class="mobile-menu-btn" id="mobile-nav-toggle" aria-label="Open menu">&#9776;</button>
+            <a href="<?= e(url('/')) ?>" class="mobile-brand"><?= e($appTitle) ?></a>
+            <span class="mobile-user-badge"><?= e(current_user()['name']) ?></span>
+        </header>
+        <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
         <div class="app-shell">
-            <aside class="sidebar">
+            <aside class="sidebar" id="app-sidebar">
                 <div class="sidebar-header">
-                    <?php if ($showLogo && $logoPath !== ''): ?>
-                        <a href="<?= e(url('/')) ?>" class="sidebar-logo-wrap">
-                            <img src="<?= e(url('/' . ltrim($logoPath, '/'))) ?>" alt="<?= e($appTitle) ?>"
-                                style="max-height: <?= $logoH ?>px; max-width: <?= $logoW ?>px;">
-                        </a>
-                    <?php endif; ?>
-                    <a href="<?= e(url('/')) ?>" class="brand"><?= e($appTitle) ?></a>
-                    <small class="sidebar-sub">Noor Staffing Group</small>
+                    <div class="sidebar-header-top">
+                        <div>
+                            <?php if ($showLogo && $logoPath !== ''): ?>
+                                <a href="<?= e(url('/')) ?>" class="sidebar-logo-wrap">
+                                    <img src="<?= e(url('/' . ltrim($logoPath, '/'))) ?>" alt="<?= e($appTitle) ?>"
+                                        style="max-height: <?= $logoH ?>px; max-width: <?= $logoW ?>px;">
+                                </a>
+                            <?php endif; ?>
+                            <a href="<?= e(url('/')) ?>" class="brand"><?= e($appTitle) ?></a>
+                            <small class="sidebar-sub">Noor Staffing Group</small>
+                        </div>
+                        <button type="button" class="sidebar-close-btn" id="mobile-nav-close" aria-label="Close menu">&times;</button>
+                    </div>
                 </div>
 
                 <nav class="sidebar-nav">
@@ -161,6 +173,27 @@ $inSettings = ($currentPath === '/settings' || str_starts_with($currentPath, '/s
                 <footer><?= e($appTitle) ?> · Noor Staffing Group</footer>
             </div>
         </div>
+
+        <script>
+            (function() {
+                var toggle = document.getElementById('mobile-nav-toggle');
+                var closeBtn = document.getElementById('mobile-nav-close');
+                var backdrop = document.getElementById('sidebar-backdrop');
+
+                function setNav(open) {
+                    document.body.classList.toggle('nav-open', open);
+                }
+                if (toggle) toggle.addEventListener('click', function() {
+                    setNav(true);
+                });
+                if (closeBtn) closeBtn.addEventListener('click', function() {
+                    setNav(false);
+                });
+                if (backdrop) backdrop.addEventListener('click', function() {
+                    setNav(false);
+                });
+            })();
+        </script>
     <?php else: ?>
         <?= $content ?>
     <?php endif; ?>

@@ -439,33 +439,50 @@ $error = $error ?? null;
             </div>
         </section>
     </div>
-
 <?php elseif ($tab === 'backup'): ?>
     <div class="grid two">
-        <section class="panel">
-            <h2>On-Demand Database Snapshot</h2>
-            <p class="subtitle">Generates a complete SQL backup archive of all tables and records inside <code>storage/backups/</code>.</p>
-            <form method="post" action="<?= e(url('/settings/backup/create')) ?>">
-                <?= csrf_field() ?>
-                <button class="btn primary full-btn">&#9729; Create Backup Now</button>
-            </form>
-            <hr>
-            <h2>Automated Schedule &amp; Retention</h2>
-            <form method="post" action="<?= e(url('/settings/backup/policy')) ?>">
-                <?= csrf_field() ?>
-                <label>Auto-Backup Frequency
-                    <select name="backup_frequency">
-                        <option value="daily" <?= ($s['backup_frequency'] ?? 'daily') === 'daily' ? 'selected' : '' ?>>Daily</option>
-                        <option value="weekly" <?= ($s['backup_frequency'] ?? '') === 'weekly' ? 'selected' : '' ?>>Weekly</option>
-                    </select>
-                </label>
-                <div class="grid two">
-                    <label>Preferred Hour<input name="backup_hour" value="<?= e($s['backup_hour'] ?? '02:00') ?>"></label>
-                    <label>Retention Policy (Days)<input type="number" name="backup_retention_days" value="<?= e($s['backup_retention_days'] ?? '30') ?>"></label>
-                </div>
-                <button class="btn full-btn">Save Backup Policy</button>
-            </form>
-        </section>
+        <div>
+            <section class="panel">
+                <h2>On-Demand Database Snapshot</h2>
+                <p class="subtitle">Generates a complete SQL backup archive of all tables and records inside <code>storage/backups/</code>.</p>
+                <form method="post" action="<?= e(url('/settings/backup/create')) ?>">
+                    <?= csrf_field() ?>
+                    <button class="btn primary full-btn">&#9729; Create Backup Now</button>
+                </form>
+            </section>
+
+            <section class="panel">
+                <h2>Upload &amp; Restore Snapshot</h2>
+                <p class="subtitle">Restore from a downloaded <code>.sql</code> database backup dump.</p>
+                <form method="post" action="<?= e(url('/settings/backup/restore')) ?>" enctype="multipart/form-data">
+                    <?= csrf_field() ?>
+                    <label>Select Backup File (<code>.sql</code>)
+                        <input type="file" name="backup_file" accept=".sql" required>
+                    </label>
+                    <button class="btn full-btn" style="background:#f59e0b; border-color:#d97706; color:#fff;" onclick="return confirm('Restore database from this SQL file? Current data will be overwritten.');">
+                        &#8634; Upload &amp; Restore Database
+                    </button>
+                </form>
+            </section>
+
+            <section class="panel">
+                <h2>Automated Schedule &amp; Retention</h2>
+                <form method="post" action="<?= e(url('/settings/backup/policy')) ?>">
+                    <?= csrf_field() ?>
+                    <label>Auto-Backup Frequency
+                        <select name="backup_frequency">
+                            <option value="daily" <?= ($s['backup_frequency'] ?? 'daily') === 'daily' ? 'selected' : '' ?>>Daily</option>
+                            <option value="weekly" <?= ($s['backup_frequency'] ?? '') === 'weekly' ? 'selected' : '' ?>>Weekly</option>
+                        </select>
+                    </label>
+                    <div class="grid two">
+                        <label>Preferred Hour<input name="backup_hour" value="<?= e($s['backup_hour'] ?? '02:00') ?>"></label>
+                        <label>Retention Policy (Days)<input type="number" name="backup_retention_days" value="<?= e($s['backup_retention_days'] ?? '30') ?>"></label>
+                    </div>
+                    <button class="btn full-btn">Save Backup Policy</button>
+                </form>
+            </section>
+        </div>
 
         <section class="panel">
             <h2>Stored Backup Archives (<?= count($archives) ?>)</h2>
@@ -476,16 +493,38 @@ $error = $error ?? null;
                             <th>Archive Filename</th>
                             <th>Created</th>
                             <th>Size</th>
+                            <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($archives as $ar): ?>
+                        <?php if (empty($archives)): ?>
                             <tr>
-                                <td><code><?= e($ar['name']) ?></code></td>
-                                <td><?= e($ar['date']) ?></td>
-                                <td><?= e($ar['size']) ?></td>
+                                <td colspan="4" class="subtitle">No backup snapshots created yet.</td>
                             </tr>
-                        <?php endforeach; ?>
+                        <?php else: ?>
+                            <?php foreach ($archives as $ar): ?>
+                                <tr>
+                                    <td><code><?= e($ar['name']) ?></code></td>
+                                    <td><?= e($ar['date']) ?></td>
+                                    <td><?= e($ar['size']) ?></td>
+                                    <td>
+                                        <div class="inline">
+                                            <form method="post" action="<?= e(url('/settings/backup/restore')) ?>" class="inline">
+                                                <?= csrf_field() ?>
+                                                <input type="hidden" name="file" value="<?= e($ar['name']) ?>">
+                                                <button class="btn" onclick="return confirm('Restore database from <?= e($ar['name']) ?>?');">Restore</button>
+                                            </form>
+                                            <a class="btn" href="<?= e(url('/settings/backup/download?file=' . urlencode($ar['name']))) ?>" title="Download SQL">&#11015; Download</a>
+                                            <form method="post" action="<?= e(url('/settings/backup/delete')) ?>" class="inline">
+                                                <?= csrf_field() ?>
+                                                <input type="hidden" name="file" value="<?= e($ar['name']) ?>">
+                                                <button class="btn" style="color:#b91c1c; border-color:#fecaca;" onclick="return confirm('Delete backup <?= e($ar['name']) ?> permanently?');">Delete</button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </tbody>
                 </table>
             </div>

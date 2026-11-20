@@ -30,6 +30,7 @@ session_set_cookie_params([
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
+    date_default_timezone_set(\App\Services\SettingsService::get('system_timezone', 'Asia/Dhaka'));
 }
 
 (new App\Core\Application($base))->run();

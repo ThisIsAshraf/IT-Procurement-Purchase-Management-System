@@ -24,6 +24,15 @@ final class PdfService
         BranchScopeService::assertBranchAccess((int)$po['ship_to_branch_id']);
         $items = $model->items($poId);
 
+        $orgTitle = SettingsService::get('pdf_header_title', SettingsService::get('app_title', 'NOOR STAFFING GROUP'));
+        $headColor = SettingsService::get('po_heading_color', '#831B30');
+        $thBg = SettingsService::get('pdf_table_header_bg', '#F1F5F9');
+        $signatory = SettingsService::get('po_signatory_name', 'Procurement Director');
+        $defaultTerms = SettingsService::get('po_declaration_text', 'Standard Noor Staffing Group procurement terms apply.');
+        $footerNote = SettingsService::get('pdf_footer_note', '');
+
+        $termsText = trim((string)($po['terms'] ?? '')) !== '' ? (string)$po['terms'] : $defaultTerms;
+
         $rowsHtml = '';
         foreach ($items as $idx => $it) {
             $rowsHtml .= '<tr>'
@@ -36,21 +45,27 @@ final class PdfService
                 . '</tr>';
         }
 
+        $footerHtml = $footerNote !== ''
+            ? '<div class="pdf-footer">' . htmlspecialchars($footerNote) . '</div>'
+            : '';
+
         $html = '
         <style>
             body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #1e293b; }
-            .hdr { border-bottom: 2px solid #0f172a; padding-bottom: 10px; margin-bottom: 16px; }
-            .hdr h1 { margin: 0; font-size: 20px; color: #0f172a; }
+            .hdr { border-bottom: 2px solid ' . htmlspecialchars($headColor) . '; padding-bottom: 10px; margin-bottom: 16px; }
+            .hdr h1 { margin: 0; font-size: 20px; color: ' . htmlspecialchars($headColor) . '; }
             .meta { width: 100%; margin-bottom: 16px; }
             .meta td { vertical-align: top; width: 50%; }
             table.items { width: 100%; border-collapse: collapse; margin-top: 10px; }
             table.items th, table.items td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
-            table.items th { background: #f1f5f9; }
+            table.items th { background: ' . htmlspecialchars($thBg) . '; color: #0f172a; }
             .totals { width: 40%; margin-left: auto; margin-top: 14px; border-collapse: collapse; }
             .totals td { padding: 4px 8px; border-bottom: 1px solid #e2e8f0; }
+            .sig-box { margin-top: 38px; width: 240px; border-top: 1px solid #475569; padding-top: 6px; font-size: 10px; }
+            .pdf-footer { margin-top: 28px; padding-top: 8px; border-top: 1px solid #cbd5e1; font-size: 9px; color: #64748b; text-align: center; }
         </style>
         <div class="hdr">
-            <h1>NOOR STAFFING GROUP — PURCHASE ORDER</h1>
+            <h1>' . htmlspecialchars(strtoupper($orgTitle)) . ' — PURCHASE ORDER</h1>
             <p><strong>PO Number:</strong> ' . htmlspecialchars((string)$po['po_number']) . ' &nbsp;|&nbsp;
                <strong>Date:</strong> ' . htmlspecialchars((string)$po['order_date']) . ' &nbsp;|&nbsp;
                <strong>Status:</strong> ' . htmlspecialchars(strtoupper((string)$po['status'])) . '</p>
@@ -85,7 +100,12 @@ final class PdfService
             <tr><td>Discount</td><td>-' . htmlspecialchars((string)$po['currency_code']) . ' ' . number_format((float)$po['discount_total'], 2) . '</td></tr>
             <tr><td><strong>Grand Total</strong></td><td><strong>' . htmlspecialchars((string)$po['currency_code']) . ' ' . number_format((float)$po['total_amount'], 2) . '</strong></td></tr>
         </table>
-        <p style="margin-top:24px;"><strong>Terms &amp; Instructions:</strong><br>' . nl2br(htmlspecialchars((string)($po['terms'] ?? 'Standard Noor Staffing Group procurement terms apply.'))) . '</p>';
+        <p style="margin-top:24px;"><strong>Terms &amp; Instructions:</strong><br>' . nl2br(htmlspecialchars($termsText)) . '</p>
+        <div class="sig-box">
+            <strong>Authorized By:</strong> ' . htmlspecialchars($signatory) . '<br>
+            <span>' . htmlspecialchars($orgTitle) . '</span>
+        </div>'
+            . $footerHtml;
 
         $dompdf = new \Dompdf\Dompdf();
         $dompdf->loadHtml($html);

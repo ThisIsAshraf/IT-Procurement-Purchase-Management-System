@@ -38,6 +38,21 @@ return static function (Router $r): void {
     $r->post('/settings/backup/create', [SettingsController::class, 'createBackup']);
     $r->post('/settings/backup/policy', [SettingsController::class, 'saveBackupPolicy']);
 
+    // Backup Download, Restore & Delete
+    $r->get('/settings/backup/download', [SettingsController::class, 'downloadBackup']);
+    $r->post('/settings/backup/restore', [SettingsController::class, 'restoreBackup']);
+    $r->post('/settings/backup/delete', [SettingsController::class, 'deleteBackup']);
+
+    // Google & Microsoft OAuth SSO
+    $r->get('/oauth/{provider}', [\App\Controllers\OAuthController::class, 'redirectProvider']);
+    $r->get('/oauth/callback/{provider}', [\App\Controllers\OAuthController::class, 'callback']);
+
+    // REST API v1
+    $r->get('/api/v1/health', [\App\Controllers\ApiController::class, 'health']);
+    $r->get('/api/v1/purchase-orders', [\App\Controllers\ApiController::class, 'purchaseOrders']);
+    $r->get('/api/v1/vendors', [\App\Controllers\ApiController::class, 'vendors']);
+    $r->get('/api/v1/reports/summary', [\App\Controllers\ApiController::class, 'summary']);
+
     // Audit Trail
     $r->get('/audit-logs', [AuditLogController::class, 'index']);
 };
