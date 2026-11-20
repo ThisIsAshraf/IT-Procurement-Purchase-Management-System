@@ -37,35 +37,38 @@ final class CatalogController extends BaseController
         $this->csrf();
         $this->require('catalog.manage');
 
-        $data = [
-            'category_id' => (int)$r->input('category_id'),
-            'unit_id'     => (int)$r->input('unit_id'),
-            'sku'         => trim((string)$r->input('sku')),
-            'item_name'   => trim((string)$r->input('item_name')),
-            'description' => trim((string)$r->input('description')),
-            'is_active'   => (int)$r->input('is_active', 1) === 1 ? 1 : 0,
-        ];
+        $categoryId = (int)$r->input('category_id', 0);
+        $unitId = (int)$r->input('unit_id', 0);
+        $name = trim((string)$r->input('item_name', ''));
+        $sku = strtoupper(trim((string)$r->input('sku', '')));
 
-        $v = (new Validator())
-            ->positiveNumber('category_id', $data['category_id'], 'Category')
-            ->positiveNumber('unit_id', $data['unit_id'], 'Unit of measure')
-            ->required('item_name', $data['item_name'], 'Item name');
-
-        if ($v->fails()) {
-            flash('error', (string)$v->firstError());
+        if ($categoryId <= 0 || $unitId <= 0 || $name === '') {
+            flash('error', 'Category, unit of measure, and item name are required.');
             redirect('/catalog');
         }
+
+        if ($sku === '') {
+            $sku = \App\Services\CodeGeneratorService::nextSku($categoryId);
+        }
+
+        $data = [
+            'category_id' => $categoryId,
+            'unit_id'     => $unitId,
+            'sku'         => $sku,
+            'item_name'   => $name,
+            'description' => trim((string)$r->input('description', '')),
+            'is_active'   => (int)$r->input('is_active', 1) === 1 ? 1 : 0,
+        ];
 
         try {
             $id = (new CatalogModel())->createItem($data);
             \audit_log('catalog_item_created', 'catalog_items', $id, null, $data);
-            flash('success', 'Catalog item created.');
+            flash('success', "Catalog item created with SKU: {$sku}");
         } catch (\Throwable $e) {
-            flash('error', 'Could not create item: ' . $e->getMessage());
+            flash('error', 'Could not create catalog item: ' . $e->getMessage());
         }
         redirect('/catalog');
     }
-
     public function updateItem(Request $r): void
     {
         $this->auth();
@@ -98,25 +101,25 @@ final class CatalogController extends BaseController
         $this->csrf();
         $this->require('catalog.manage');
 
-        $parentId = (int)$r->input('parent_id') ?: null;
-        $code = trim((string)$r->input('category_code'));
-        $name = trim((string)$r->input('name'));
+        $name = trim((string)$r->input('name', ''));
+        $code = strtoupper(trim((string)$r->input('category_code', '')));
+        $parentId = (int)$r->input('parent_id', 0);
 
-        $v = (new Validator())
-            ->required('category_code', $code, 'Category code')
-            ->required('name', $name, 'Category name');
-
-        if ($v->fails()) {
-            flash('error', (string)$v->firstError());
+        if ($name === '') {
+            flash('error', 'Category name is required.');
             redirect('/catalog');
         }
 
+        if ($code === '') {
+            $code = \App\Services\CodeGeneratorService::nextCategoryCode($name);
+        }
+
         try {
-            $id = (new CatalogModel())->createCategory($parentId, $code, $name);
-            \audit_log('category_created', 'item_categories', $id, null, ['code' => $code, 'name' => $name]);
-            flash('success', 'Category created.');
+            (new CatalogModel())->createCategory($parentId > 0 ? $parentId : null, $code, $name);
+            \audit_log('item_category_created', 'item_categories', null, null, ['code' => $code, 'name' => $name]);
+            flash('success', "Category '{$name}' added with code: {$code}");
         } catch (\Throwable $e) {
-            flash('error', 'Could not create category: ' . $e->getMessage());
+            flash('error', 'Could not add category: ' . $e->getMessage());
         }
         redirect('/catalog');
     }

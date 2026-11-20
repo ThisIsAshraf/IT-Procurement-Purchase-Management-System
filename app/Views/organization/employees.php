@@ -3,15 +3,20 @@
 /**
  * @var string|null $flash
  * @var string|null $error
+ * @var array<int, array<string, mixed>> $employees
  * @var array<int, array<string, mixed>> $branches
  * @var array<int, array<string, mixed>> $departments
- * @var array<int, array<string, mixed>> $employees
  */
+
+use App\Services\CodeGeneratorService;
+
 $flash = $flash ?? null;
 $error = $error ?? null;
+$employees = $employees ?? [];
 $branches = $branches ?? [];
 $departments = $departments ?? [];
-$employees = $employees ?? [];
+
+$empPreview = CodeGeneratorService::globalPrefix() . '-DHK-0001';
 ?>
 <h1>Employee Directory</h1>
 <?php if ($flash): ?><div class="alert success"><?= e($flash) ?></div><?php endif; ?>
@@ -23,7 +28,9 @@ $employees = $employees ?? [];
             <h2>Add Employee</h2>
             <form method="post" action="<?= e(url('/employees')) ?>">
                 <?= csrf_field() ?>
-                <label>Employee ID / Code<input name="employee_number" placeholder="e.g. EMP-1042"></label>
+                <label>Employee ID / Code <small class="subtitle">(Leave blank to auto-generate)</small>
+                    <input name="employee_number" placeholder="Auto: e.g. <?= e($empPreview) ?>">
+                </label>
                 <label>Full Name<input name="full_name" required></label>
                 <label>Work Email<input type="email" name="email" required></label>
                 <label>Branch
@@ -45,8 +52,8 @@ $employees = $employees ?? [];
                 <label>Reporting Manager
                     <select name="manager_employee_id">
                         <option value="">None / Top-level</option>
-                        <?php foreach ($employees as $emp): ?>
-                            <option value="<?= e($emp['id']) ?>"><?= e($emp['full_name']) ?> (<?= e($emp['job_title'] ?? 'Staff') ?>)</option>
+                        <?php foreach ($employees as $m): ?>
+                            <option value="<?= e($m['id']) ?>"><?= e($m['full_name']) ?><?= !empty($m['employee_number']) ? ' (' . e($m['employee_number']) . ')' : '' ?></option>
                         <?php endforeach; ?>
                     </select>
                 </label>
@@ -80,12 +87,15 @@ $employees = $employees ?? [];
                 <tbody>
                     <?php foreach ($employees as $emp): ?>
                         <tr>
-                            <td><?= e($emp['employee_number'] ?? '—') ?></td>
-                            <td><strong><?= e($emp['full_name']) ?></strong><br><small><?= e($emp['job_title'] ?? '') ?> · <?= e($emp['email']) ?></small></td>
-                            <td><?= e($emp['branch_code']) ?> · <?= e($emp['department_name']) ?></td>
+                            <td><code><?= e($emp['employee_number'] ?? '—') ?></code></td>
+                            <td>
+                                <strong><?= e($emp['full_name']) ?></strong><br>
+                                <small class="subtitle"><?= e($emp['job_title'] ?? '') ?> · <?= e($emp['email']) ?></small>
+                            </td>
+                            <td><?= e($emp['branch_code'] ?? '') ?> / <?= e($emp['department_name'] ?? '') ?></td>
                             <td><?= e($emp['manager_name'] ?? '—') ?></td>
-                            <td><?= $emp['user_id'] ? 'Linked (' . e($emp['user_status']) . ')' : 'No login' ?></td>
-                            <td><?= e($emp['employment_status']) ?></td>
+                            <td><?= !empty($emp['user_id']) ? '<span class="badge success">Linked</span>' : '<span class="badge">None</span>' ?></td>
+                            <td><span class="badge"><?= e($emp['employment_status']) ?></span></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>

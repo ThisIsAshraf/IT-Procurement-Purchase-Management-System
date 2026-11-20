@@ -10,6 +10,9 @@
  * @var array<int, array<string, mixed>> $paymentTerms
  * @var array<int, array<string, mixed>> $currencies
  */
+
+use App\Services\CodeGeneratorService;
+
 $flash = $flash ?? null;
 $error = $error ?? null;
 $items = $items ?? [];
@@ -18,6 +21,9 @@ $units = $units ?? [];
 $exchangeRates = $exchangeRates ?? [];
 $paymentTerms = $paymentTerms ?? [];
 $currencies = $currencies ?? [];
+
+$skuPreview = CodeGeneratorService::globalPrefix() . '-HARDWARE-0001';
+$catPreview = CodeGeneratorService::nextCategoryCode();
 ?>
 <h1>Catalog, Currencies &amp; Master Data</h1>
 <?php if ($flash): ?><div class="alert success"><?= e($flash) ?></div><?php endif; ?>
@@ -45,7 +51,9 @@ $currencies = $currencies ?? [];
                         <?php endforeach; ?>
                     </select>
                 </label>
-                <label>SKU<input name="sku" placeholder="e.g. IT-LAP-001"></label>
+                <label>SKU <small class="subtitle">(Leave blank to auto-generate)</small>
+                    <input name="sku" placeholder="Auto: e.g. <?= e($skuPreview) ?>">
+                </label>
                 <label>Item Name<input name="item_name" required></label>
                 <label>Description<textarea name="description" rows="2"></textarea></label>
                 <label>Status
@@ -102,7 +110,9 @@ $currencies = $currencies ?? [];
                         <?php endforeach; ?>
                     </select>
                 </label>
-                <label>Category Code<input name="category_code" required></label>
+                <label>Category Code <small class="subtitle">(Leave blank to auto-generate)</small>
+                    <input name="category_code" placeholder="Auto: <?= e($catPreview) ?>">
+                </label>
                 <label>Category Name<input name="name" required></label>
                 <button class="btn">Add Category</button>
             </form>

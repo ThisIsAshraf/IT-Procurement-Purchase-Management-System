@@ -14,6 +14,7 @@ return static function (Router $r): void {
     $r->get('/reports', [ReportController::class, 'index']);
     $r->post('/reports/save', [ReportController::class, 'save']);
     $r->get('/reports/export', [ReportController::class, 'export']);
+    $r->post('/settings/numbering', [SettingsController::class, 'saveNumbering']);
 
     // Multi-Entity Bulk Imports & Templates
     $r->get('/imports', [ImportController::class, 'index']);

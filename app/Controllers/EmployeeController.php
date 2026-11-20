@@ -8,6 +8,7 @@ use App\Core\Request;
 use App\Core\Validator;
 use App\Models\OrganizationModel;
 use App\Services\BranchScopeService;
+use App\Services\CodeGeneratorService;
 
 final class EmployeeController extends BaseController
 {
@@ -36,8 +37,13 @@ final class EmployeeController extends BaseController
         $branchId = (int)$r->input('branch_id');
         BranchScopeService::assertBranchAccess($branchId);
 
+        $empNo = strtoupper(trim((string)$r->input('employee_number', '')));
+        if ($empNo === '' && $branchId > 0) {
+            $empNo = CodeGeneratorService::nextEmployeeNumber($branchId);
+        }
+
         $data = [
-            'employee_number'     => trim((string)$r->input('employee_number')),
+            'employee_number'     => $empNo,
             'full_name'           => trim((string)$r->input('full_name')),
             'email'               => trim((string)$r->input('email')),
             'branch_id'           => $branchId,
@@ -63,7 +69,7 @@ final class EmployeeController extends BaseController
         try {
             $id = (new OrganizationModel())->createEmployee($data);
             \audit_log('employee_created', 'employees', $id, null, $data);
-            flash('success', 'Employee added.');
+            flash('success', "Employee added with ID: {$empNo}");
         } catch (\Throwable $e) {
             flash('error', 'Could not create employee: ' . $e->getMessage());
         }
@@ -80,8 +86,13 @@ final class EmployeeController extends BaseController
         $branchId = (int)$r->input('branch_id');
         BranchScopeService::assertBranchAccess($branchId);
 
+        $empNo = strtoupper(trim((string)$r->input('employee_number', '')));
+        if ($empNo === '' && $branchId > 0) {
+            $empNo = CodeGeneratorService::nextEmployeeNumber($branchId);
+        }
+
         $data = [
-            'employee_number'     => trim((string)$r->input('employee_number')),
+            'employee_number'     => $empNo,
             'full_name'           => trim((string)$r->input('full_name')),
             'email'               => trim((string)$r->input('email')),
             'branch_id'           => $branchId,

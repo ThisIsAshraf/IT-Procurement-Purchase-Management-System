@@ -23,6 +23,7 @@ final class SettingsController extends BaseController
         'sso'       => 'Google & Microsoft SSO',
         'api'       => 'API Keys & RBAC',
         'backup'    => 'Backup & Recovery',
+        'numbering' => 'ID & Code Generators',
     ];
 
     public function index(Request $r): void
@@ -463,5 +464,31 @@ final class SettingsController extends BaseController
             flash('error', 'Restore failed: ' . $e->getMessage());
         }
         redirect('/settings?tab=backup');
+    }
+
+    public function saveNumbering(Request $r): void
+    {
+        $this->auth();
+        $this->csrf();
+        $this->require('settings.manage');
+
+        SettingsService::setMany([
+            'global_id_prefix'           => strtoupper(trim((string)$r->input('global_id_prefix', 'NSG'))),
+            'sku_include_prefix'         => (int)$r->input('sku_include_prefix', 0) === 1 ? '1' : '0',
+            'sku_seq_digits'             => (string)max(2, min(8, (int)$r->input('sku_seq_digits', 4))),
+            'cat_code_mode'              => trim((string)$r->input('cat_code_mode', 'prefix_seq')),
+            'cat_code_prefix'            => strtoupper(trim((string)$r->input('cat_code_prefix', 'CAT'))),
+            'cat_include_global_prefix'  => (int)$r->input('cat_include_global_prefix', 0) === 1 ? '1' : '0',
+            'cat_seq_digits'             => (string)max(2, min(6, (int)$r->input('cat_seq_digits', 3))),
+            'emp_include_global_prefix'  => (int)$r->input('emp_include_global_prefix', 0) === 1 ? '1' : '0',
+            'emp_include_branch_code'    => (int)$r->input('emp_include_branch_code', 0) === 1 ? '1' : '0',
+            'emp_include_tag_with_branch' => (int)$r->input('emp_include_tag_with_branch', 0) === 1 ? '1' : '0',
+            'emp_code_tag'               => strtoupper(trim((string)$r->input('emp_code_tag', 'EMP'))),
+            'emp_seq_digits'             => (string)max(2, min(8, (int)$r->input('emp_seq_digits', 4))),
+        ], (int)current_user()['id']);
+
+        \audit_log('settings_numbering_updated', 'settings');
+        flash('success', 'Auto-numbering & ID generator rules saved.');
+        redirect('/settings?tab=numbering');
     }
 }
