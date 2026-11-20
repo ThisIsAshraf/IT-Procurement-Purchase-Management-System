@@ -9,7 +9,9 @@ use App\Controllers\ApprovalController;
 return static function (Router $r): void {
     $r->get('/approval-workflows', [ApprovalWorkflowController::class, 'index']);
     $r->post('/approval-workflows', [ApprovalWorkflowController::class, 'store']);
+    $r->post('/approval-workflows/{id}/steps', [ApprovalWorkflowController::class, 'addStep']);
 
     $r->get('/approvals', [ApprovalController::class, 'index']);
     $r->post('/approvals/act', [ApprovalController::class, 'act']);
+    $r->post('/approvals/delegations', [ApprovalController::class, 'storeDelegation']);
 };

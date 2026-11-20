@@ -24,9 +24,17 @@ return static function (Router $r): void {
     $r->get('/requisitions/{id}', [RequisitionController::class, 'show']);
     $r->post('/requisitions/{id}/status', [RequisitionController::class, 'updateStatus']);
 
-    // Quotations & Purchase Orders (expanded in Phases 4 & 5)
+    // Quotations & Vendor Comparison
     $r->get('/quotations', [QuotationController::class, 'index']);
     $r->post('/quotations', [QuotationController::class, 'store']);
+    $r->get('/quotations/compare/{requisitionId}', [QuotationController::class, 'compare']);
+    $r->post('/quotations/compare/{requisitionId}', [QuotationController::class, 'saveComparison']);
+
+    // Purchase Orders
     $r->get('/purchase_orders', [PurchaseOrderController::class, 'index']);
     $r->post('/purchase_orders', [PurchaseOrderController::class, 'store']);
+    $r->get('/purchase_orders/{id}', [PurchaseOrderController::class, 'show']);
+    $r->post('/purchase_orders/{id}/submit', [PurchaseOrderController::class, 'submit']);
+    $r->post('/purchase_orders/{id}/send', [PurchaseOrderController::class, 'send']);
+    $r->post('/purchase_orders/{id}/cancel', [PurchaseOrderController::class, 'cancel']);
 };
