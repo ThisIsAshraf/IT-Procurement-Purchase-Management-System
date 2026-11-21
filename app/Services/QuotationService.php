@@ -86,6 +86,11 @@ final class QuotationService
         }
     }
 
+    /**
+     * Save vendor comparison and either trigger approval workflow (if configured) or approve directly.
+     *
+     * @return array{comparison_id: int, approval_instance_id: int|null}
+     */
     public function saveComparisonAndSelect(
         int $requisitionId,
         string $title,
@@ -94,23 +99,53 @@ final class QuotationService
         int $selectedQuotationId,
         int $userId,
         bool $finalizeSelection = false
-    ): int {
+    ): array {
         $req = (new RequisitionModel())->find($requisitionId);
         if (!$req) {
             throw new \RuntimeException('Requisition not found.');
         }
         BranchScopeService::assertBranchAccess((int)$req['branch_id']);
 
+        $compTitle = $title !== '' ? $title : ('Vendor Evaluation — ' . $req['requisition_no']);
+        $quoteAmount = null;
+        $quoteCurrency = null;
+
+        if ($selectedQuotationId > 0) {
+            $qStmt = $this->db->prepare(
+                'SELECT q.currency_code,
+                        COALESCE((SELECT SUM(qi.quantity * qi.unit_price) FROM quotation_items qi WHERE qi.quotation_id = q.id), 0)
+                        + q.tax_amount + q.shipping_amount - q.discount_amount AS grand_total
+                 FROM quotations q
+                 WHERE q.id = ? AND q.requisition_id = ?'
+            );
+            $qStmt->execute([$selectedQuotationId, $requisitionId]);
+            $qRow = $qStmt->fetch();
+            if ($qRow) {
+                $quoteAmount = (float)$qRow['grand_total'];
+                $quoteCurrency = (string)$qRow['currency_code'];
+            }
+        }
+
+        // Check if an approval workflow exists for quotation_comparison
+        $wfService = new ApprovalWorkflowService();
+        $hasWorkflow = $finalizeSelection && $wfService->matchWorkflow(
+            'quotation_comparison',
+            (int)$req['branch_id'],
+            !empty($req['department_id']) ? (int)$req['department_id'] : null,
+            $quoteAmount,
+            $quoteCurrency
+        ) !== null;
+
         $this->db->beginTransaction();
         try {
-            $status = $finalizeSelection ? 'approved' : 'submitted';
+            $status = ($finalizeSelection && !$hasWorkflow) ? 'approved' : 'submitted';
             $stmt = $this->db->prepare(
                 'INSERT INTO quotation_comparisons (requisition_id, comparison_title, prepared_by, recommendation, status)
                  VALUES (?, ?, ?, ?, ?)'
             );
             $stmt->execute([
                 $requisitionId,
-                $title !== '' ? $title : ('Vendor Evaluation — ' . $req['requisition_no']),
+                $compTitle,
                 $userId,
                 $recommendation !== '' ? $recommendation : null,
                 $status,
@@ -140,7 +175,7 @@ final class QuotationService
                     $notesVal !== '' ? $notesVal : null,
                 ]);
 
-                if ($finalizeSelection && $selectedQuotationId > 0) {
+                if ($finalizeSelection && !$hasWorkflow && $selectedQuotationId > 0) {
                     $newQuoteStatus = ($qid === $selectedQuotationId) ? 'selected' : 'rejected';
                     $this->db->prepare('UPDATE quotations SET status = ? WHERE id = ? AND requisition_id = ?')
                         ->execute([$newQuoteStatus, $qid, $requisitionId]);
@@ -151,8 +186,9 @@ final class QuotationService
             }
 
             if ($finalizeSelection && $selectedQuotationId > 0) {
-                $this->db->prepare("UPDATE requisitions SET status = 'approved' WHERE id = ? AND status IN ('draft', 'sourcing', 'pending_approval')")
-                    ->execute([$requisitionId]);
+                $reqStatus = $hasWorkflow ? 'pending_approval' : 'approved';
+                $this->db->prepare("UPDATE requisitions SET status = ? WHERE id = ? AND status IN ('draft', 'sourcing', 'pending_approval')")
+                    ->execute([$reqStatus, $requisitionId]);
             }
 
             $this->db->commit();
@@ -160,11 +196,29 @@ final class QuotationService
                 'requisition_id'        => $requisitionId,
                 'selected_quotation_id' => $selectedQuotationId,
                 'finalized'             => $finalizeSelection,
+                'workflow_triggered'    => $hasWorkflow,
             ]);
-            return $comparisonId;
         } catch (\Throwable $e) {
             $this->db->rollBack();
             throw $e;
         }
+
+        $instanceId = null;
+        if ($hasWorkflow) {
+            $instanceId = $wfService->initiate(
+                'quotation_comparison',
+                $comparisonId,
+                $userId,
+                (int)$req['branch_id'],
+                !empty($req['department_id']) ? (int)$req['department_id'] : null,
+                $quoteAmount,
+                $quoteCurrency
+            );
+        }
+
+        return [
+            'comparison_id'        => $comparisonId,
+            'approval_instance_id' => $instanceId,
+        ];
     }
 }

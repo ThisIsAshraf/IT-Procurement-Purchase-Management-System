@@ -94,6 +94,13 @@ final class ApprovalWorkflowService
             'document_type' => $documentType,
             'document_id'   => $documentId,
         ]);
+
+        // Notify Step 1 approvers immediately via email
+        $docLabel = ucwords(str_replace('_', ' ', $documentType));
+        $docNo = $this->resolveDocumentLabel($documentType, $documentId);
+        $subName = $this->resolveUserName($initiatedBy);
+        ApprovalNotificationService::notifyCurrentStep($instanceId, $docLabel, $docNo, $subName, url('/approvals'));
+
         return $instanceId;
     }
 
@@ -132,6 +139,8 @@ final class ApprovalWorkflowService
             throw new \RuntimeException('You are not an authorized approver or active delegate for this step.');
         }
 
+        $advancedToNextStep = false;
+
         $this->db->beginTransaction();
         try {
             $actIns = $this->db->prepare(
@@ -156,6 +165,7 @@ final class ApprovalWorkflowService
                 if ($nextOrder) {
                     $this->db->prepare('UPDATE approval_instances SET current_step_order = ? WHERE id = ?')
                         ->execute([(int)$nextOrder, $instanceId]);
+                    $advancedToNextStep = true;
                 } else {
                     $this->db->prepare("UPDATE approval_instances SET status = 'approved', completed_at = NOW() WHERE id = ?")
                         ->execute([$instanceId]);
@@ -173,6 +183,19 @@ final class ApprovalWorkflowService
             $this->db->rollBack();
             throw $e;
         }
+
+        // Send notifications after transaction commits
+        $docType = (string)$inst['document_type'];
+        $docId = (int)$inst['document_id'];
+        $docLabel = ucwords(str_replace('_', ' ', $docType));
+        $docNo = $this->resolveDocumentLabel($docType, $docId);
+
+        if ($advancedToNextStep) {
+            $subName = $this->resolveUserName((int)$inst['initiated_by']);
+            ApprovalNotificationService::notifyCurrentStep($instanceId, $docLabel, $docNo, $subName, url('/approvals'));
+        } else {
+            $this->notifySubmitterOutcome((int)$inst['initiated_by'], $docLabel, $docNo, $decision, $comments);
+        }
     }
 
     public function canUserActOnStep(int $userId, array $step): bool
@@ -181,7 +204,6 @@ final class ApprovalWorkflowService
             return true;
         }
 
-        // Collect user ID + any delegators who currently delegated to this user
         $delStmt = $this->db->prepare(
             'SELECT delegator_user_id FROM approval_delegations
              WHERE delegate_user_id = ? AND starts_at <= NOW() AND ends_at >= NOW()'
@@ -238,6 +260,117 @@ final class ApprovalWorkflowService
                 default    => 'under_review',
             };
             $this->db->prepare('UPDATE invoices SET status = ? WHERE id = ?')->execute([$status, $documentId]);
+        } elseif ($documentType === 'quotation_comparison') {
+            $compStmt = $this->db->prepare('SELECT requisition_id FROM quotation_comparisons WHERE id = ? LIMIT 1');
+            $compStmt->execute([$documentId]);
+            $reqId = (int)$compStmt->fetchColumn();
+
+            $compStatus = match ($decision) {
+                'approved' => 'approved',
+                'rejected' => 'rejected',
+                default    => 'draft',
+            };
+            $this->db->prepare('UPDATE quotation_comparisons SET status = ? WHERE id = ?')->execute([$compStatus, $documentId]);
+
+            if ($reqId > 0) {
+                if ($decision === 'approved') {
+                    // Promote recommended quote to selected and reject others
+                    $recStmt = $this->db->prepare(
+                        'SELECT quotation_id FROM quotation_comparison_items WHERE comparison_id = ? AND is_recommended = 1 LIMIT 1'
+                    );
+                    $recStmt->execute([$documentId]);
+                    $winningQid = (int)$recStmt->fetchColumn();
+
+                    if ($winningQid > 0) {
+                        $this->db->prepare(
+                            "UPDATE quotations
+                             SET status = CASE WHEN id = ? THEN 'selected' ELSE 'rejected' END
+                             WHERE requisition_id = ?"
+                        )->execute([$winningQid, $reqId]);
+                    }
+                    $this->db->prepare("UPDATE requisitions SET status = 'approved' WHERE id = ?")->execute([$reqId]);
+                } elseif ($decision === 'rejected') {
+                    $this->db->prepare("UPDATE requisitions SET status = 'rejected' WHERE id = ?")->execute([$reqId]);
+                } else {
+                    $this->db->prepare("UPDATE requisitions SET status = 'sourcing' WHERE id = ?")->execute([$reqId]);
+                }
+            }
+        }
+    }
+
+    private function resolveDocumentLabel(string $documentType, int $documentId): string
+    {
+        try {
+            if ($documentType === 'quotation_comparison') {
+                $st = $this->db->prepare('SELECT comparison_title FROM quotation_comparisons WHERE id = ?');
+                $st->execute([$documentId]);
+                $val = $st->fetchColumn();
+                if ($val) {
+                    return (string)$val;
+                }
+            } elseif ($documentType === 'purchase_request') {
+                $st = $this->db->prepare('SELECT pr_number FROM purchase_requests WHERE id = ?');
+                $st->execute([$documentId]);
+                $val = $st->fetchColumn();
+                if ($val) {
+                    return (string)$val;
+                }
+            } elseif ($documentType === 'requisition') {
+                $st = $this->db->prepare('SELECT requisition_no FROM requisitions WHERE id = ?');
+                $st->execute([$documentId]);
+                $val = $st->fetchColumn();
+                if ($val) {
+                    return (string)$val;
+                }
+            } elseif ($documentType === 'purchase_order') {
+                $st = $this->db->prepare('SELECT po_number FROM purchase_orders WHERE id = ?');
+                $st->execute([$documentId]);
+                $val = $st->fetchColumn();
+                if ($val) {
+                    return (string)$val;
+                }
+            }
+        } catch (\Throwable $e) {
+            // Fallback below
+        }
+        return '#' . $documentId;
+    }
+
+    private function resolveUserName(int $userId): string
+    {
+        $st = $this->db->prepare('SELECT full_name FROM users WHERE id = ?');
+        $st->execute([$userId]);
+        return (string)($st->fetchColumn() ?: 'System User');
+    }
+
+    private function notifySubmitterOutcome(int $userId, string $docLabel, string $docNo, string $decision, string $comments): void
+    {
+        $st = $this->db->prepare('SELECT full_name, email FROM users WHERE id = ? AND status = "active"');
+        $st->execute([$userId]);
+        $u = $st->fetch();
+        if (!$u || empty($u['email']) || !filter_var((string)$u['email'], FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+
+        $appTitle = SettingsService::get('app_title', 'NSG Procurement');
+        $statusText = strtoupper($decision);
+        $subject = "[{$appTitle}] {$docLabel} ({$docNo}) — {$statusText}";
+        $nameEsc = htmlspecialchars((string)$u['full_name'], ENT_QUOTES, 'UTF-8');
+        $docEsc = htmlspecialchars("{$docLabel} ({$docNo})", ENT_QUOTES, 'UTF-8');
+        $noteHtml = $comments !== '' ? '<p><strong>Comments:</strong> ' . htmlspecialchars($comments, ENT_QUOTES, 'UTF-8') . '</p>' : '';
+
+        $body = "
+            <p>Hello <strong>{$nameEsc}</strong>,</p>
+            <p>Your submission <strong>{$docEsc}</strong> has been marked as <strong>{$statusText}</strong>.</p>
+            {$noteHtml}
+        ";
+
+        MailService::queue((string)$u['email'], $subject, $body);
+        try {
+            $err = null;
+            MailService::sendQueued(5, $err);
+        } catch (\Throwable $e) {
+            // Keep queued
         }
     }
 }

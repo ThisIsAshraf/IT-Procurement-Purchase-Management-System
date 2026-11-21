@@ -170,7 +170,7 @@ final class QuotationController extends BaseController
         }
 
         try {
-            (new QuotationService())->saveComparisonAndSelect(
+            $result = (new QuotationService())->saveComparisonAndSelect(
                 $reqId,
                 $title,
                 $recommendation,
@@ -179,9 +179,14 @@ final class QuotationController extends BaseController
                 (int)current_user()['id'],
                 $finalize
             );
-            flash('success', $finalize
-                ? 'Winning quotation selected and Requisition approved for Purchase Order generation.'
-                : 'Vendor comparison scores saved.');
+
+            if ($finalize && !empty($result['approval_instance_id'])) {
+                flash('success', 'Quotation selection submitted for approval and approver(s) notified via email.');
+            } elseif ($finalize) {
+                flash('success', 'Winning quotation selected and Requisition approved for Purchase Order generation.');
+            } else {
+                flash('success', 'Vendor comparison scores saved.');
+            }
         } catch (\Throwable $e) {
             flash('error', 'Could not save comparison: ' . $e->getMessage());
         }

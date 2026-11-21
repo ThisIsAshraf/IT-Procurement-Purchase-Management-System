@@ -4,6 +4,7 @@
  * @var string $content
  */
 
+use App\Services\ApprovalNotificationService;
 use App\Services\SettingsService;
 
 $content = $content ?? '';
@@ -24,6 +25,15 @@ if ($basePath !== '' && str_starts_with($currentPath, $basePath)) {
 }
 $currentTab = (string)($_GET['tab'] ?? 'branding');
 $inSettings = ($currentPath === '/settings' || str_starts_with($currentPath, '/settings/'));
+
+$authUser = current_user();
+$pendingApprovalsCount = 0;
+$pendingApprovalItems = [];
+if ($authUser && can('approvals.view')) {
+    $uid = (int)($authUser['id'] ?? 0);
+    $pendingApprovalsCount = ApprovalNotificationService::pendingCountForUser($uid);
+    $pendingApprovalItems = ApprovalNotificationService::pendingItemsForUser($uid, 6);
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -39,15 +49,133 @@ $inSettings = ($currentPath === '/settings' || str_starts_with($currentPath, '/s
             --sidebar-text: <?= e($sidebarText) ?>;
             --primary: <?= e($sidebarActive) ?>;
         }
+
+        .topbar-utility {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1.5rem;
+            background: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .notif-wrap {
+            position: relative;
+        }
+
+        .notif-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.42rem 0.85rem;
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 999px;
+            color: #0f172a;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease;
+        }
+
+        .notif-btn:hover {
+            background: #f1f5f9;
+            border-color: #94a3b8;
+        }
+
+        .notif-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        .notif-badge.has-items {
+            background: #dc2626;
+            color: #ffffff;
+        }
+
+        .notif-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 8px);
+            width: 340px;
+            max-width: 92vw;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+            z-index: 1000;
+            overflow: hidden;
+        }
+
+        .notif-dropdown.open {
+            display: block;
+        }
+
+        .notif-dd-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.7rem 0.95rem;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .notif-dd-item {
+            display: block;
+            padding: 0.7rem 0.95rem;
+            border-bottom: 1px solid #f1f5f9;
+            text-decoration: none;
+            color: #1e293b;
+            font-size: 0.83rem;
+        }
+
+        .notif-dd-item:hover {
+            background: #f8fafc;
+        }
+
+        .notif-dd-foot {
+            display: block;
+            text-align: center;
+            padding: 0.65rem;
+            background: #f8fafc;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .nav-pill {
+            float: right;
+            background: #dc2626;
+            color: #fff;
+            border-radius: 999px;
+            padding: 1px 7px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
     </style>
 </head>
 
-<body class="<?= current_user() ? 'has-sidebar' : 'guest-layout' ?>">
-    <?php if (current_user()): ?>
+<body class="<?= $authUser ? 'has-sidebar' : 'guest-layout' ?>">
+    <?php if ($authUser): ?>
         <header class="mobile-header">
             <button type="button" class="mobile-menu-btn" id="mobile-nav-toggle" aria-label="Open menu">&#9776;</button>
             <a href="<?= e(url('/')) ?>" class="mobile-brand"><?= e($appTitle) ?></a>
-            <span class="mobile-user-badge"><?= e(current_user()['name']) ?></span>
+            <span class="mobile-user-badge"><?= e($authUser['name']) ?></span>
         </header>
         <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 
@@ -121,6 +249,9 @@ $inSettings = ($currentPath === '/settings' || str_starts_with($currentPath, '/s
                                 ?>
                                 <a href="<?= e(url($href)) ?>" class="nav-link <?= $isActive ? 'active' : '' ?>">
                                     <?= e($label) ?>
+                                    <?php if ($href === '/approvals' && $pendingApprovalsCount > 0): ?>
+                                        <span class="nav-pill"><?= $pendingApprovalsCount ?></span>
+                                    <?php endif; ?>
                                 </a>
                             <?php endforeach; ?>
                         </div>
@@ -163,7 +294,7 @@ $inSettings = ($currentPath === '/settings' || str_starts_with($currentPath, '/s
                 </nav>
 
                 <div class="sidebar-footer">
-                    <div class="user-name"><?= e(current_user()['name']) ?></div>
+                    <div class="user-name"><?= e($authUser['name']) ?></div>
                     <form method="post" action="<?= e(url('/logout')) ?>">
                         <?= csrf_field() ?>
                         <button class="btn sidebar-logout">Sign out</button>
@@ -172,6 +303,43 @@ $inSettings = ($currentPath === '/settings' || str_starts_with($currentPath, '/s
             </aside>
 
             <div class="main-shell">
+                <div class="topbar-utility">
+                    <?php if (can('approvals.view')): ?>
+                        <div class="notif-wrap" id="notif-wrap">
+                            <button type="button" class="notif-btn" id="notif-toggle" aria-expanded="false" title="Approval Notifications">
+                                <span style="font-size:1rem; line-height:1;">&#128276;</span>
+                                <span>Notifications</span>
+                                <span class="notif-badge <?= $pendingApprovalsCount > 0 ? 'has-items' : '' ?>">
+                                    <?= $pendingApprovalsCount ?>
+                                </span>
+                            </button>
+                            <div class="notif-dropdown" id="notif-dropdown">
+                                <div class="notif-dd-head">
+                                    <span>Pending Approvals</span>
+                                    <span><?= $pendingApprovalsCount ?> waiting</span>
+                                </div>
+                                <?php if (empty($pendingApprovalItems)): ?>
+                                    <div style="padding:1rem; text-align:center; color:#64748b; font-size:0.83rem;">
+                                        No pending approvals assigned to you.
+                                    </div>
+                                <?php else: ?>
+                                    <?php foreach ($pendingApprovalItems as $item): ?>
+                                        <a href="<?= e(url('/approvals')) ?>" class="notif-dd-item">
+                                            <div style="font-weight:600; color:#0f172a;">
+                                                <?= e(ucwords(str_replace('_', ' ', (string)$item['document_type']))) ?> #<?= (int)$item['document_id'] ?>
+                                            </div>
+                                            <div style="color:#64748b; font-size:0.78rem; margin-top:2px;">
+                                                Step <?= (int)$item['current_step_order'] ?>: <?= e((string)$item['step_name']) ?> &middot; <?= e((string)$item['workflow_name']) ?>
+                                            </div>
+                                        </a>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                                <a href="<?= e(url('/approvals')) ?>" class="notif-dd-foot">Open Approvals Inbox &rarr;</a>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+                </div>
+
                 <main class="container"><?= $content ?></main>
                 <footer><?= e($appTitle) ?> · Noor Staffing Group</footer>
             </div>
@@ -195,6 +363,23 @@ $inSettings = ($currentPath === '/settings' || str_starts_with($currentPath, '/s
                 if (backdrop) backdrop.addEventListener('click', function() {
                     setNav(false);
                 });
+
+                var notifToggle = document.getElementById('notif-toggle');
+                var notifDropdown = document.getElementById('notif-dropdown');
+                var notifWrap = document.getElementById('notif-wrap');
+                if (notifToggle && notifDropdown && notifWrap) {
+                    notifToggle.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        var isOpen = notifDropdown.classList.toggle('open');
+                        notifToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                    });
+                    document.addEventListener('click', function(e) {
+                        if (!notifWrap.contains(e.target)) {
+                            notifDropdown.classList.remove('open');
+                            notifToggle.setAttribute('aria-expanded', 'false');
+                        }
+                    });
+                }
             })();
         </script>
     <?php else: ?>
