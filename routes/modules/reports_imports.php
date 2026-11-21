@@ -33,6 +33,7 @@ return static function (Router $r): void {
     $r->post('/settings/templates', [SettingsController::class, 'saveTemplate']);
     $r->post('/settings/smtp', [SettingsController::class, 'saveSmtp']);
     $r->post('/settings/smtp-test', [SettingsController::class, 'sendTestEmail']);
+    $r->post('/settings/smtp-queue/clear', [SettingsController::class, 'clearMailQueue']);
     $r->post('/settings/sso', [SettingsController::class, 'saveSso']);
     $r->post('/settings/api-keys', [SettingsController::class, 'createApiKey']);
     $r->post('/settings/api-keys/{id}/revoke', [SettingsController::class, 'revokeApiKey']);

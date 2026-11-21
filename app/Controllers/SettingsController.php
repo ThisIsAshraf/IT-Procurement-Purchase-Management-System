@@ -56,24 +56,38 @@ final class SettingsController extends BaseController
             rsort($archives);
         }
 
+        $qPage = max(1, (int)$r->input('qpage', 1));
+        $qPerPage = 8;
+        $qTotal = (int)$pdo->query('SELECT COUNT(*) FROM notification_queue')->fetchColumn();
+        $qTotalPages = max(1, (int)ceil($qTotal / $qPerPage));
+        if ($qPage > $qTotalPages) {
+            $qPage = $qTotalPages;
+        }
+        $qOffset = ($qPage - 1) * $qPerPage;
+        $queueRows = $pdo->query("SELECT * FROM notification_queue ORDER BY id DESC LIMIT {$qPerPage} OFFSET {$qOffset}")->fetchAll();
+
         $this->view('settings/index', [
-            'tab'           => $tab,
-            'tabs'          => self::TABS,
-            's'             => SettingsService::all(),
-            'currencies'    => $org->activeCurrencies(),
-            'allCurrencies' => $org->allCurrencies(),
-            'countries'     => $org->countries(),
-            'exchangeRates' => $cat->exchangeRates(),
-            'categories'    => $cat->categories(),
-            'units'         => $cat->units(),
-            'paymentTerms'  => $cat->paymentTerms(),
-            'templates'     => $pdo->query('SELECT * FROM notification_templates ORDER BY template_key ASC')->fetchAll(),
-            'queue'         => $pdo->query('SELECT * FROM notification_queue ORDER BY id DESC LIMIT 30')->fetchAll(),
-            'roles'         => $pdo->query('SELECT id, name FROM roles WHERE is_active = 1 ORDER BY name')->fetchAll(),
-            'apiKeys'       => $pdo->query('SELECT ak.*, r.name AS role_name FROM api_keys ak JOIN roles r ON r.id = ak.role_id ORDER BY ak.id DESC')->fetchAll(),
-            'archives'      => $archives,
-            'flash'         => flash('success'),
-            'error'         => flash('error'),
+            'tab'               => $tab,
+            'tabs'              => self::TABS,
+            's'                 => SettingsService::all(),
+            'currencies'        => $org->activeCurrencies(),
+            'allCurrencies'     => $org->allCurrencies(),
+            'countries'         => $org->countries(),
+            'exchangeRates'     => $cat->exchangeRates(),
+            'categories'        => $cat->categories(),
+            'units'             => $cat->units(),
+            'paymentTerms'      => $cat->paymentTerms(),
+            'templates'         => $pdo->query('SELECT * FROM notification_templates ORDER BY template_key ASC')->fetchAll(),
+            'queue'             => $queueRows,
+            'queuePage'         => $qPage,
+            'queueTotalPages'   => $qTotalPages,
+            'queueTotal'        => $qTotal,
+            'pendingQueueCount' => (int)$pdo->query("SELECT COUNT(*) FROM notification_queue WHERE status IN ('pending', 'sending')")->fetchColumn(),
+            'roles'             => $pdo->query('SELECT id, name FROM roles WHERE is_active = 1 ORDER BY name')->fetchAll(),
+            'apiKeys'           => $pdo->query('SELECT ak.*, r.name AS role_name FROM api_keys ak JOIN roles r ON r.id = ak.role_id ORDER BY ak.id DESC')->fetchAll(),
+            'archives'          => $archives,
+            'flash'             => flash('success'),
+            'error'             => flash('error'),
         ]);
     }
 
@@ -244,11 +258,40 @@ final class SettingsController extends BaseController
 
         MailService::queue($to, 'NSG Procurement — SMTP Test Message', '<p>Your outgoing SMTP configuration is working properly.</p>');
         try {
-            $sent = MailService::sendQueued(5);
-            flash('success', $sent > 0 ? "Test email delivered to {$to}." : 'Test email queued (check SMTP credentials if delivery failed).');
+            $err = null;
+            $sent = MailService::sendQueued(10, $err);
+            if ($sent > 0) {
+                flash('success', "Test email delivered to {$to}.");
+            } else {
+                flash('error', 'SMTP delivery failed: ' . ($err ?: 'Unknown SMTP error. Check credentials and port.'));
+            }
         } catch (\Throwable $e) {
-            flash('error', $e->getMessage());
+            flash('error', 'SMTP error: ' . $e->getMessage());
         }
+        redirect('/settings?tab=smtp');
+    }
+
+    public function clearMailQueue(Request $r): void
+    {
+        $this->auth();
+        $this->csrf();
+        $this->require('settings.manage');
+
+        $scope = (string)$r->input('scope', 'completed');
+        $pdo = Database::connection();
+
+        if ($scope === 'all') {
+            $deleted = $pdo->exec('DELETE FROM notification_queue');
+            \audit_log('mail_queue_cleared', 'notification_queue', null, null, ['scope' => 'all', 'deleted' => $deleted]);
+            flash('success', "All email queue records cleared ({$deleted} removed).");
+        } else {
+            $stmt = $pdo->prepare("DELETE FROM notification_queue WHERE status IN ('sent', 'failed')");
+            $stmt->execute();
+            $deleted = $stmt->rowCount();
+            \audit_log('mail_queue_cleared', 'notification_queue', null, null, ['scope' => 'completed', 'deleted' => $deleted]);
+            flash('success', "Cleared {$deleted} sent/failed email log entries.");
+        }
+
         redirect('/settings?tab=smtp');
     }
 

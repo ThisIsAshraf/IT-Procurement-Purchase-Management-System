@@ -13,6 +13,10 @@
  * @var array<int, array<string, mixed>> $paymentTerms
  * @var array<int, array<string, mixed>> $templates
  * @var array<int, array<string, mixed>> $queue
+ * @var int $queuePage
+ * @var int $queueTotalPages
+ * @var int $queueTotal
+ * @var int $pendingQueueCount
  * @var array<int, array<string, mixed>> $roles
  * @var array<int, array<string, mixed>> $apiKeys
  * @var array<int, array<string, mixed>> $archives
@@ -31,6 +35,10 @@ $units = $units ?? [];
 $paymentTerms = $paymentTerms ?? [];
 $templates = $templates ?? [];
 $queue = $queue ?? [];
+$queuePage = $queuePage ?? 1;
+$queueTotalPages = $queueTotalPages ?? 1;
+$queueTotal = $queueTotal ?? count($queue);
+$pendingQueueCount = $pendingQueueCount ?? 0;
 $roles = $roles ?? [];
 $apiKeys = $apiKeys ?? [];
 $archives = $archives ?? [];
@@ -500,12 +508,75 @@ $error = $error ?? null;
         </section>
 
         <section class="panel">
-            <h2>Send Live Test Email &amp; Queue (<?= count($queue) ?>)</h2>
+            <div class="page-header">
+                <h2>Send Live Test Email &amp; Pending Queue (<?= (int)$pendingQueueCount ?>)</h2>
+                <?php if ($queueTotal > 0): ?>
+                    <div class="inline">
+                        <form method="post" action="<?= e(url('/settings/smtp-queue/clear')) ?>" class="inline">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="scope" value="completed">
+                            <button class="btn" onclick="return confirm('Clear all Sent and Failed email logs?');">Clear Logs</button>
+                        </form>
+                        <form method="post" action="<?= e(url('/settings/smtp-queue/clear')) ?>" class="inline">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="scope" value="all">
+                            <button class="btn" style="color:#b91c1c; border-color:#fecaca;" onclick="return confirm('Clear the entire email queue including any pending emails?');">Clear All</button>
+                        </form>
+                    </div>
+                <?php endif; ?>
+            </div>
+
             <form method="post" action="<?= e(url('/settings/smtp-test')) ?>">
                 <?= csrf_field() ?>
                 <label>Recipient Email for Testing<input type="email" name="test_recipient" placeholder="you@noorstaffing.com" required></label>
                 <button class="btn full-btn">Send Real Test Email</button>
             </form>
+
+            <?php if (!empty($queue)): ?>
+                <hr>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Recipient</th>
+                                <th>Status</th>
+                                <th>Sent / Error</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($queue as $mq): ?>
+                                <tr>
+                                    <td><?= e($mq['recipient_email']) ?></td>
+                                    <td>
+                                        <?php if ($mq['status'] === 'sent'): ?>
+                                            <span class="badge success">Sent</span>
+                                        <?php elseif ($mq['status'] === 'failed'): ?>
+                                            <span class="badge danger">Failed</span>
+                                        <?php else: ?>
+                                            <span class="badge"><?= e(ucfirst((string)$mq['status'])) ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><small class="subtitle"><?= e($mq['sent_at'] ?? ($mq['last_error'] ?? 'Queued')) ?></small></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+
+                <?php if ($queueTotalPages > 1): ?>
+                    <div class="page-header" style="margin-top:0.75rem; margin-bottom:0;">
+                        <small class="subtitle">Page <?= (int)$queuePage ?> of <?= (int)$queueTotalPages ?> (<?= (int)$queueTotal ?> total)</small>
+                        <div class="inline">
+                            <?php if ($queuePage > 1): ?>
+                                <a class="btn" href="<?= e(url('/settings?tab=smtp&qpage=' . ($queuePage - 1))) ?>">&larr; Prev</a>
+                            <?php endif; ?>
+                            <?php if ($queuePage < $queueTotalPages): ?>
+                                <a class="btn" href="<?= e(url('/settings?tab=smtp&qpage=' . ($queuePage + 1))) ?>">Next &rarr;</a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            <?php endif; ?>
         </section>
     </div>
 
