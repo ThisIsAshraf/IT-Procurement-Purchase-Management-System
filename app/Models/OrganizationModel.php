@@ -165,4 +165,44 @@ final class OrganizationModel
             $id,
         ]);
     }
+
+    public function allCurrencies(): array
+    {
+        return Database::connection()->query('SELECT * FROM currencies ORDER BY code ASC')->fetchAll();
+    }
+
+    public function createCountry(string $iso2, string $iso3, string $name): int
+    {
+        $pdo = Database::connection();
+        $stmt = $pdo->prepare('INSERT INTO countries (iso2, iso3, name) VALUES (?, ?, ?)');
+        $stmt->execute([strtoupper(trim($iso2)), strtoupper(trim($iso3)), trim($name)]);
+        return (int)$pdo->lastInsertId();
+    }
+
+    public function deleteCountry(int $id): void
+    {
+        Database::connection()->prepare('DELETE FROM countries WHERE id = ?')->execute([$id]);
+    }
+
+    public function createCurrency(string $code, string $name, string $symbol, int $minorUnit = 2, bool $isActive = true): void
+    {
+        $stmt = Database::connection()->prepare(
+            'INSERT INTO currencies (code, name, symbol, minor_unit, is_active)
+             VALUES (?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE name = VALUES(name), symbol = VALUES(symbol), minor_unit = VALUES(minor_unit), is_active = VALUES(is_active)'
+        );
+        $stmt->execute([strtoupper(trim($code)), trim($name), trim($symbol), $minorUnit, $isActive ? 1 : 0]);
+    }
+
+    public function toggleCurrency(string $code, bool $isActive): void
+    {
+        Database::connection()->prepare('UPDATE currencies SET is_active = ? WHERE code = ?')
+            ->execute([$isActive ? 1 : 0, strtoupper(trim($code))]);
+    }
+
+    public function deleteCurrency(string $code): void
+    {
+        Database::connection()->prepare('DELETE FROM currencies WHERE code = ?')
+            ->execute([strtoupper(trim($code))]);
+    }
 }

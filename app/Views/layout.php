@@ -147,6 +147,7 @@ $inSettings = ($currentPath === '/settings' || str_starts_with($currentPath, '/s
                                         ['backup', 'Backup & Recovery'],
                                         ['numbering', 'ID & Code Generators'],
                                         ['master_data', 'Categories, Units & Terms'],
+                                        ['geo', 'Countries & Currencies'],
                                     ];
                                     foreach ($settingsMenu as [$tabKey, $tabLabel]):
                                         $subActive = $inSettings && $currentTab === $tabKey;

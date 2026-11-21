@@ -65,4 +65,11 @@ return static function (Router $r): void {
     $r->post('/settings/master/units/{id}/delete', [SettingsController::class, 'deleteMasterUnit']);
     $r->post('/settings/master/terms', [SettingsController::class, 'storeMasterTerm']);
     $r->post('/settings/master/terms/{id}/delete', [SettingsController::class, 'deleteMasterTerm']);
+
+    // Settings: Countries & Currencies
+    $r->post('/settings/geo/countries', [SettingsController::class, 'storeGeoCountry']);
+    $r->post('/settings/geo/countries/{id}/delete', [SettingsController::class, 'deleteGeoCountry']);
+    $r->post('/settings/geo/currencies', [SettingsController::class, 'storeGeoCurrency']);
+    $r->post('/settings/geo/currencies/{code}/toggle', [SettingsController::class, 'toggleGeoCurrency']);
+    $r->post('/settings/geo/currencies/{code}/delete', [SettingsController::class, 'deleteGeoCurrency']);
 };

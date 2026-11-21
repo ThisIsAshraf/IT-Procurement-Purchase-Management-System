@@ -26,6 +26,7 @@ final class SettingsController extends BaseController
         'backup'      => 'Backup & Recovery',
         'numbering'   => 'ID & Code Generators',
         'master_data' => 'Categories, Units & Terms',
+        'geo'         => 'Countries & Currencies',
     ];
 
     public function index(Request $r): void
@@ -60,6 +61,8 @@ final class SettingsController extends BaseController
             'tabs'          => self::TABS,
             's'             => SettingsService::all(),
             'currencies'    => $org->activeCurrencies(),
+            'allCurrencies' => $org->allCurrencies(),
+            'countries'     => $org->countries(),
             'exchangeRates' => $cat->exchangeRates(),
             'categories'    => $cat->categories(),
             'units'         => $cat->units(),
@@ -639,5 +642,103 @@ final class SettingsController extends BaseController
             flash('error', 'Cannot delete payment term in use: ' . $e->getMessage());
         }
         redirect('/settings?tab=master_data');
+    }
+
+    public function storeGeoCountry(Request $r): void
+    {
+        $this->auth();
+        $this->csrf();
+        $this->require('settings.manage');
+
+        $iso2 = strtoupper(trim((string)$r->input('iso2', '')));
+        $iso3 = strtoupper(trim((string)$r->input('iso3', '')));
+        $name = trim((string)$r->input('name', ''));
+
+        if (strlen($iso2) !== 2 || strlen($iso3) !== 3 || $name === '') {
+            flash('error', 'Country Name, 2-letter ISO2 code, and 3-letter ISO3 code are required.');
+            redirect('/settings?tab=geo');
+        }
+
+        try {
+            $id = (new OrganizationModel())->createCountry($iso2, $iso3, $name);
+            \audit_log('country_created', 'countries', $id, null, ['iso2' => $iso2, 'iso3' => $iso3, 'name' => $name]);
+            flash('success', "Country '{$name}' ({$iso2}) added.");
+        } catch (\Throwable $e) {
+            flash('error', 'Could not add country: ' . $e->getMessage());
+        }
+        redirect('/settings?tab=geo');
+    }
+
+    public function deleteGeoCountry(Request $r): void
+    {
+        $this->auth();
+        $this->csrf();
+        $this->require('settings.manage');
+
+        try {
+            (new OrganizationModel())->deleteCountry((int)($r->params()['id'] ?? 0));
+            flash('success', 'Country deleted.');
+        } catch (\Throwable $e) {
+            flash('error', 'Cannot delete country in use by branches or vendors: ' . $e->getMessage());
+        }
+        redirect('/settings?tab=geo');
+    }
+
+    public function storeGeoCurrency(Request $r): void
+    {
+        $this->auth();
+        $this->csrf();
+        $this->require('settings.manage');
+
+        $code = strtoupper(trim((string)$r->input('code', '')));
+        $name = trim((string)$r->input('name', ''));
+        $symbol = trim((string)$r->input('symbol', ''));
+        $minor = max(0, min(4, (int)$r->input('minor_unit', 2)));
+
+        if (strlen($code) !== 3 || $name === '' || $symbol === '') {
+            flash('error', '3-letter Currency Code, Name, and Symbol are required.');
+            redirect('/settings?tab=geo');
+        }
+
+        try {
+            (new OrganizationModel())->createCurrency($code, $name, $symbol, $minor, true);
+            \audit_log('currency_saved', 'currencies', null, null, ['code' => $code, 'name' => $name, 'symbol' => $symbol]);
+            flash('success', "Currency '{$code}' ({$name}) saved.");
+        } catch (\Throwable $e) {
+            flash('error', 'Could not save currency: ' . $e->getMessage());
+        }
+        redirect('/settings?tab=geo');
+    }
+
+    public function toggleGeoCurrency(Request $r): void
+    {
+        $this->auth();
+        $this->csrf();
+        $this->require('settings.manage');
+
+        $code = strtoupper(trim((string)($r->params()['code'] ?? '')));
+        $active = (int)$r->input('is_active', 1) === 1;
+        try {
+            (new OrganizationModel())->toggleCurrency($code, $active);
+            flash('success', "Currency {$code} status updated.");
+        } catch (\Throwable $e) {
+            flash('error', $e->getMessage());
+        }
+        redirect('/settings?tab=geo');
+    }
+
+    public function deleteGeoCurrency(Request $r): void
+    {
+        $this->auth();
+        $this->csrf();
+        $this->require('settings.manage');
+
+        try {
+            (new OrganizationModel())->deleteCurrency((string)($r->params()['code'] ?? ''));
+            flash('success', 'Currency deleted.');
+        } catch (\Throwable $e) {
+            flash('error', 'Cannot delete currency in use: ' . $e->getMessage());
+        }
+        redirect('/settings?tab=geo');
     }
 }

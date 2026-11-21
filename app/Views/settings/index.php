@@ -5,6 +5,8 @@
  * @var array<string, string> $tabs
  * @var array<string, string> $s
  * @var array<int, array<string, mixed>> $currencies
+ * @var array<int, array<string, mixed>> $allCurrencies
+ * @var array<int, array<string, mixed>> $countries
  * @var array<int, array<string, mixed>> $exchangeRates
  * @var array<int, array<string, mixed>> $categories
  * @var array<int, array<string, mixed>> $units
@@ -21,6 +23,8 @@ $tab = $tab ?? 'branding';
 $tabs = $tabs ?? [];
 $s = $s ?? [];
 $currencies = $currencies ?? [];
+$allCurrencies = $allCurrencies ?? [];
+$countries = $countries ?? [];
 $exchangeRates = $exchangeRates ?? [];
 $categories = $categories ?? [];
 $units = $units ?? [];
@@ -261,6 +265,16 @@ $error = $error ?? null;
                 var empTag = (document.getElementById('num_emp_tag').value.trim() || 'EMP').toUpperCase();
                 var empSeq = padSeq(document.getElementById('num_emp_digits').value, 2, 8);
 
+                var parts = [];
+                if (empGlobal) parts.push(globalPrefix);
+                if (empBranch) parts.push('DHK');
+                if (!empBranch || parts.length === 0) {
+                    parts.push(empTag);
+                } else if (empTagWithBranch) {
+                    parts.push(empTag);
+                }
+                document.getElementById('preview_emp').textContent = parts.join('-') + '-' + empSeq;
+
                 // 4. Department Code Preview
                 var deptMode = document.getElementById('num_dept_mode').value;
                 var deptTag = (document.getElementById('num_dept_tag').value.trim() || 'DEPT').toUpperCase();
@@ -271,16 +285,6 @@ $error = $error ?? null;
                 } else {
                     document.getElementById('preview_dept').textContent = (deptGlobal ? globalPrefix + '-' : '') + deptTag + '-' + deptSeq;
                 }
-
-                var parts = [];
-                if (empGlobal) parts.push(globalPrefix);
-                if (empBranch) parts.push('DHK');
-                if (!empBranch || parts.length === 0) {
-                    parts.push(empTag);
-                } else if (empTagWithBranch) {
-                    parts.push(empTag);
-                }
-                document.getElementById('preview_emp').textContent = parts.join('-') + '-' + empSeq;
             }
 
             var form = document.getElementById('numbering-form');
@@ -827,5 +831,100 @@ $error = $error ?? null;
                 </div>
             </section>
         </div>
+    </div>
+
+<?php elseif ($tab === 'geo'): ?>
+    <div class="grid two">
+        <section class="panel">
+            <h2>Countries (<?= count($countries) ?>)</h2>
+            <form method="post" action="<?= e(url('/settings/geo/countries')) ?>">
+                <?= csrf_field() ?>
+                <label>Country Name *<input name="name" placeholder="e.g. Saudi Arabia" required></label>
+                <div class="grid two">
+                    <label>ISO-2 Code *<input name="iso2" maxlength="2" placeholder="e.g. SA" style="text-transform:uppercase;" required></label>
+                    <label>ISO-3 Code *<input name="iso3" maxlength="3" placeholder="e.g. SAU" style="text-transform:uppercase;" required></label>
+                </div>
+                <button class="btn primary">Add Country</button>
+            </form>
+            <hr>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ISO-2</th>
+                            <th>ISO-3</th>
+                            <th>Country Name</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($countries as $ct): ?>
+                            <tr>
+                                <td><code><?= e($ct['iso2']) ?></code></td>
+                                <td><code><?= e($ct['iso3']) ?></code></td>
+                                <td><strong><?= e($ct['name']) ?></strong></td>
+                                <td>
+                                    <form method="post" action="<?= e(url('/settings/geo/countries/' . $ct['id'] . '/delete')) ?>" class="inline">
+                                        <?= csrf_field() ?>
+                                        <button class="btn" style="color:#b91c1c;" onclick="return confirm('Delete <?= e($ct['name']) ?>?');">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>Currencies (<?= count($allCurrencies) ?>)</h2>
+            <form method="post" action="<?= e(url('/settings/geo/currencies')) ?>">
+                <?= csrf_field() ?>
+                <div class="grid three">
+                    <label>Code (ISO) *<input name="code" maxlength="3" placeholder="e.g. SAR" style="text-transform:uppercase;" required></label>
+                    <label>Symbol *<input name="symbol" maxlength="8" placeholder="e.g. ﷼" required></label>
+                    <label>Decimals<input type="number" min="0" max="4" name="minor_unit" value="2"></label>
+                </div>
+                <label>Currency Name *<input name="name" placeholder="e.g. Saudi Riyal" required></label>
+                <button class="btn primary">Save Currency</button>
+            </form>
+            <hr>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Symbol</th>
+                            <th>Currency Name</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($allCurrencies as $cur): ?>
+                            <tr>
+                                <td><code><?= e($cur['code']) ?></code></td>
+                                <td><?= e($cur['symbol']) ?></td>
+                                <td><?= e($cur['name']) ?></td>
+                                <td><?= (int)$cur['is_active'] === 1 ? '<span class="badge success">Active</span>' : '<span class="badge">Inactive</span>' ?></td>
+                                <td>
+                                    <div class="inline">
+                                        <form method="post" action="<?= e(url('/settings/geo/currencies/' . urlencode($cur['code']) . '/toggle')) ?>" class="inline">
+                                            <?= csrf_field() ?>
+                                            <input type="hidden" name="is_active" value="<?= (int)$cur['is_active'] === 1 ? 0 : 1 ?>">
+                                            <button class="btn"><?= (int)$cur['is_active'] === 1 ? 'Disable' : 'Enable' ?></button>
+                                        </form>
+                                        <form method="post" action="<?= e(url('/settings/geo/currencies/' . urlencode($cur['code']) . '/delete')) ?>" class="inline">
+                                            <?= csrf_field() ?>
+                                            <button class="btn" style="color:#b91c1c;" onclick="return confirm('Delete <?= e($cur['code']) ?>?');">Delete</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </section>
     </div>
 <?php endif; ?>
